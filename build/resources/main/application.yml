@@ -1,0 +1,25 @@
+server:
+  port: 7924
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/parodiaMisera
+    username: postgres
+    password: 09bd2n4d
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
