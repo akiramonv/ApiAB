@@ -17,6 +17,6 @@ public class CategoryServiceEntity extends BaseEntity {
     @Column(name = "prntcategory")
     private UUID prntCategory;
 
-    @Column(name = "provid")
+    @Column(name = "provid", nullable = false)
     private UUID provId;
 }

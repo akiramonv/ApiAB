@@ -20,7 +20,7 @@ public class ProviderServiceEntity extends BaseEntity {
     @Column(name = "provid", nullable = false)
     private UUID provId;
 
-    @Column(name = "accountid")
+    @Column(name = "accountid", nullable = false)
     private UUID accountId;
 
     @Column(name = "commid")

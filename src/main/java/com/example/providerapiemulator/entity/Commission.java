@@ -16,6 +16,6 @@ public class Commission extends BaseEntity {
     @Column(name = "commissiontype", nullable = false)
     private CommissionType commissionType;
 
-    @Column(name = "commissionvalue", nullable = false, precision = 19, scale = 4)
+    @Column(name = "commissionvalue", nullable = false, precision = 12, scale = 2)
     private BigDecimal commissionValue;
 }

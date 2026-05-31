@@ -14,6 +14,6 @@ public class SpecializationEntity extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "provid")
+    @Column(name = "provid", nullable = false)
     private UUID provId;
 }

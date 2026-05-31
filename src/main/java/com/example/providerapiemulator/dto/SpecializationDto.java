@@ -5,5 +5,5 @@ import java.util.UUID;
 public record SpecializationDto(
         UUID id,
         String name,
-        UUID provId
+        String providerName
 ) {}

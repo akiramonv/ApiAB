@@ -2,6 +2,7 @@ package com.example.providerapiemulator.controller;
 
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.dto.UserDto;
+import com.example.providerapiemulator.dto.UserRequest;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -40,12 +41,12 @@ public class UserController {
     }
 
     @PostMapping
-    public GenericResponse<UserDto> create(@Valid @RequestBody UserDto dto) {
+    public GenericResponse<UserDto> create(@Valid @RequestBody UserRequest dto) {
         return GenericResponse.ok(service.createUser(dto), "User created");
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<UserDto> update(@PathVariable UUID id, @Valid @RequestBody UserDto dto) {
+    public GenericResponse<UserDto> update(@PathVariable UUID id, @Valid @RequestBody UserRequest dto) {
         return GenericResponse.ok(service.updateUser(id, dto), "User updated");
     }
 

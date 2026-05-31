@@ -14,9 +14,9 @@ public class AccountEntity extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "ownername")
+    @Column(name = "ownername", nullable = false)
     private String ownerName;
 
-    @Column(name = "provid")
+    @Column(name = "provid", nullable = false)
     private UUID provId;
 }

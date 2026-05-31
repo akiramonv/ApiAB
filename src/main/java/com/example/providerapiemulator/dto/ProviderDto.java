@@ -6,6 +6,6 @@ public record ProviderDto(
         UUID id,
         String fullName,
         String shortName,
-        UUID commLvl,
-        UUID commId
+        String commissionLevel,
+        CommissionDetailsDto commission
 ) {}

@@ -2,6 +2,7 @@ package com.example.providerapiemulator.controller;
 
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.dto.ProviderServiceDto;
+import com.example.providerapiemulator.dto.ProviderServiceRequest;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -39,18 +40,23 @@ public class ProviderServiceController {
         return GenericResponse.ok(service.getServicesByProvider(providerId));
     }
 
+    @GetMapping("/by-account/{accountId}")
+    public GenericResponse<List<ProviderServiceDto>> byAccount(@PathVariable UUID accountId) {
+        return GenericResponse.ok(service.getServicesByAccount(accountId));
+    }
+
     @GetMapping("/by-user/{userId}")
     public GenericResponse<List<ProviderServiceDto>> byUser(@PathVariable UUID userId) {
         return GenericResponse.ok(service.getServicesByUserSpecialization(userId));
     }
 
     @PostMapping
-    public GenericResponse<ProviderServiceDto> create(@Valid @RequestBody ProviderServiceDto dto) {
+    public GenericResponse<ProviderServiceDto> create(@Valid @RequestBody ProviderServiceRequest dto) {
         return GenericResponse.ok(service.createService(dto), "Service created");
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<ProviderServiceDto> update(@PathVariable UUID id, @Valid @RequestBody ProviderServiceDto dto) {
+    public GenericResponse<ProviderServiceDto> update(@PathVariable UUID id, @Valid @RequestBody ProviderServiceRequest dto) {
         return GenericResponse.ok(service.updateService(id, dto), "Service updated");
     }
 

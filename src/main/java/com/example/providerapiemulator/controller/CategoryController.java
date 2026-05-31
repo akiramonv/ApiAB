@@ -1,6 +1,7 @@
 package com.example.providerapiemulator.controller;
 
 import com.example.providerapiemulator.dto.CategoryServiceDto;
+import com.example.providerapiemulator.dto.CategoryServiceRequest;
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
@@ -34,13 +35,18 @@ public class CategoryController {
         return GenericResponse.ok(service.getCategoriesByProvider(providerId));
     }
 
+    @GetMapping("/by-parent/{parentId}")
+    public GenericResponse<List<CategoryServiceDto>> byParent(@PathVariable UUID parentId) {
+        return GenericResponse.ok(service.getCategoriesByParent(parentId));
+    }
+
     @PostMapping
-    public GenericResponse<CategoryServiceDto> create(@Valid @RequestBody CategoryServiceDto dto) {
+    public GenericResponse<CategoryServiceDto> create(@Valid @RequestBody CategoryServiceRequest dto) {
         return GenericResponse.ok(service.createCategory(dto), "Category created");
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<CategoryServiceDto> update(@PathVariable UUID id, @Valid @RequestBody CategoryServiceDto dto) {
+    public GenericResponse<CategoryServiceDto> update(@PathVariable UUID id, @Valid @RequestBody CategoryServiceRequest dto) {
         return GenericResponse.ok(service.updateCategory(id, dto), "Category updated");
     }
 

@@ -2,6 +2,7 @@ package com.example.providerapiemulator.controller;
 
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.dto.SpecializationDto;
+import com.example.providerapiemulator.dto.SpecializationRequest;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -29,18 +30,18 @@ public class SpecializationController {
         return GenericResponse.ok(service.getSpecialization(id));
     }
 
-        @GetMapping("/by-provider/{providerId}")
+    @GetMapping("/by-provider/{providerId}")
     public GenericResponse<List<SpecializationDto>> byProvider(@PathVariable UUID providerId) {
         return GenericResponse.ok(service.getSpecializationsByProvider(providerId));
     }
 
     @PostMapping
-    public GenericResponse<SpecializationDto> create(@Valid @RequestBody SpecializationDto dto) {
+    public GenericResponse<SpecializationDto> create(@Valid @RequestBody SpecializationRequest dto) {
         return GenericResponse.ok(service.createSpecialization(dto), "Specialization created");
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<SpecializationDto> update(@PathVariable UUID id, @Valid @RequestBody SpecializationDto dto) {
+    public GenericResponse<SpecializationDto> update(@PathVariable UUID id, @Valid @RequestBody SpecializationRequest dto) {
         return GenericResponse.ok(service.updateSpecialization(id, dto), "Specialization updated");
     }
 

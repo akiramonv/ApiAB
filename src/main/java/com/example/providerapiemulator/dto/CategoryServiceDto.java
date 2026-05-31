@@ -5,6 +5,6 @@ import java.util.UUID;
 public record CategoryServiceDto(
         UUID id,
         String name,
-        UUID prntCategory,
-        UUID provId
+        String parentCategoryName,
+        String providerName
 ) {}

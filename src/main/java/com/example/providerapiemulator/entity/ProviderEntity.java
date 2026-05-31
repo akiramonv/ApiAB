@@ -17,7 +17,7 @@ public class ProviderEntity extends BaseEntity {
     @Column(name = "shortname")
     private String shortName;
 
-    @Column(name = "commlvl")
+    @Column(name = "commlvl", nullable = false)
     private UUID commLvl;
 
     @Column(name = "commid")

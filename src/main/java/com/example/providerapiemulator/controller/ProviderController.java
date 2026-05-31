@@ -2,6 +2,7 @@ package com.example.providerapiemulator.controller;
 
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.dto.ProviderDto;
+import com.example.providerapiemulator.dto.ProviderRequest;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -30,12 +31,12 @@ public class ProviderController {
     }
 
     @PostMapping
-    public GenericResponse<ProviderDto> create(@Valid @RequestBody ProviderDto dto) {
+    public GenericResponse<ProviderDto> create(@Valid @RequestBody ProviderRequest dto) {
         return GenericResponse.ok(service.createProvider(dto), "Provider created");
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<ProviderDto> update(@PathVariable UUID id, @Valid @RequestBody ProviderDto dto) {
+    public GenericResponse<ProviderDto> update(@PathVariable UUID id, @Valid @RequestBody ProviderRequest dto) {
         return GenericResponse.ok(service.updateProvider(id, dto), "Provider updated");
     }
 

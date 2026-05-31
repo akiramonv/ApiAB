@@ -1,5 +1,6 @@
 package com.example.providerapiemulator.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 public record UserDto(
@@ -7,5 +8,7 @@ public record UserDto(
         String name,
         String email,
         String password,
-        UUID provId
+        String providerName,
+        List<String> roles,
+        List<String> specializations
 ) {}
