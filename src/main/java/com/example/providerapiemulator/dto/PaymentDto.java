@@ -12,6 +12,8 @@ public record PaymentDto(
         BigDecimal fee,
         PaymentStatus status,
         String providerName,
+        String inn,
+        String fio,
         String qrLink,
         String qrCode,
         LocalDateTime createdAt,

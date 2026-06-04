@@ -116,6 +116,7 @@ public class ProviderCatalogService {
     public ProviderServiceDto createService(ProviderServiceRequest dto) {
         ProviderServiceEntity e = new ProviderServiceEntity();
         e.setName(dto.name());
+        e.setPrice(dto.price() != null ? dto.price() : BigDecimal.ZERO);
         e.setCategoryId(dto.categoryId());
         e.setProvId(dto.provId());
         e.setAccountId(dto.accountId());
@@ -129,6 +130,7 @@ public class ProviderCatalogService {
         ProviderServiceEntity e = providerServiceRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Service not found: " + id));
         e.setName(dto.name());
+        e.setPrice(dto.price() != null ? dto.price() : BigDecimal.ZERO);
         e.setCategoryId(dto.categoryId());
         e.setProvId(dto.provId());
         e.setAccountId(dto.accountId());
@@ -499,12 +501,23 @@ public class ProviderCatalogService {
         ProviderEntity provider = providerRepository.findById(dto.provId())
                 .orElseThrow(() -> new NotFoundException("Provider not found: " + dto.provId()));
 
+        BigDecimal effectiveSum = dto.sum();
+        if (dto.serviceId() != null) {
+            ProviderServiceEntity service = providerServiceRepository.findById(dto.serviceId())
+                    .orElseThrow(() -> new NotFoundException("Service not found: " + dto.serviceId()));
+            if (service.getPrice().compareTo(BigDecimal.ZERO) != 0) {
+                effectiveSum = service.getPrice();
+            }
+        }
+
         PaymentEntity e = new PaymentEntity();
         e.setId(UUID.randomUUID());
-        e.setSum(dto.sum());
-        e.setFee(resolvePaymentFee(dto.sum(), dto.fee(), provider));
+        e.setSum(effectiveSum);
+        e.setFee(resolvePaymentFee(effectiveSum, dto.fee(), provider));
         e.setStatus(dto.status() == null ? PaymentStatus.processing : dto.status());
         e.setProvId(dto.provId());
+        e.setInn(dto.inn());
+        e.setFio(dto.fio());
         e.setQrLink(paymentQrLink(e.getId()));
         e.setQrCode(generateQrCode(e.getQrLink()));
         return toDto(paymentRepository.save(e));
@@ -676,6 +689,7 @@ public class ProviderCatalogService {
         return new ProviderServiceDto(
                 e.getId(),
                 e.getName(),
+                e.getPrice(),
                 categoryName(e.getCategoryId()),
                 providerName(e.getProvId()),
                 accountName(e.getAccountId()),
@@ -742,6 +756,8 @@ public class ProviderCatalogService {
                 e.getFee(),
                 e.getStatus(),
                 providerName(e.getProvId()),
+                e.getInn(),
+                e.getFio(),
                 e.getQrLink(),
                 e.getQrCode(),
                 e.getCreatedAt(),
@@ -849,6 +865,7 @@ public class ProviderCatalogService {
     private ProviderServiceRequest providerServiceRequest(Map<String, Object> params) {
         return new ProviderServiceRequest(
                 text(params, "name"),
+                optionalDecimal(params, "price"),
                 uuid(params, "categoryId"),
                 uuid(params, "provId"),
                 uuid(params, "accountId"),
@@ -905,7 +922,10 @@ public class ProviderCatalogService {
                 decimal(params, "sum"),
                 optionalDecimal(params, "fee"),
                 optionalPaymentStatus(params, "status"),
-                uuid(params, "provId")
+                uuid(params, "provId"),
+                optionalText(params, "inn"),
+                text(params, "fio"),
+                optionalUuid(params, "serviceId")
         );
     }
 

@@ -33,6 +33,12 @@ public class PaymentEntity extends BaseEntity {
     @Column(name = "provid", nullable = false)
     private UUID provId;
 
+    @Column(name = "inn", length = 20)
+    private String inn;
+
+    @Column(name = "fio", nullable = false)
+    private String fio;
+
     @Column(name = "qrlink", length = 2048)
     private String qrLink;
 

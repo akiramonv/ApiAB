@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -13,6 +14,9 @@ import java.util.UUID;
 public class ProviderServiceEntity extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal price = BigDecimal.ZERO;
 
     @Column(name = "categoryid", nullable = false)
     private UUID categoryId;
