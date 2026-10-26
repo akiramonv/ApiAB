@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/specializations")
@@ -21,17 +20,18 @@ public class SpecializationController {
     }
 
     @GetMapping
-    public GenericResponse<List<SpecializationDto>> all() {
-        return GenericResponse.ok(service.getAllSpecializations());
+    public GenericResponse<List<SpecializationDto>> all(
+            @RequestParam(defaultValue = "false") boolean includeDeleted) {
+        return GenericResponse.ok(service.getAllSpecializations(includeDeleted));
     }
 
     @GetMapping("/{id}")
-    public GenericResponse<SpecializationDto> one(@PathVariable UUID id) {
+    public GenericResponse<SpecializationDto> one(@PathVariable String id) {
         return GenericResponse.ok(service.getSpecialization(id));
     }
 
     @GetMapping("/by-provider/{providerId}")
-    public GenericResponse<List<SpecializationDto>> byProvider(@PathVariable UUID providerId) {
+    public GenericResponse<List<SpecializationDto>> byProvider(@PathVariable String providerId) {
         return GenericResponse.ok(service.getSpecializationsByProvider(providerId));
     }
 
@@ -41,13 +41,14 @@ public class SpecializationController {
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<SpecializationDto> update(@PathVariable UUID id, @Valid @RequestBody SpecializationRequest dto) {
+    public GenericResponse<SpecializationDto> update(@PathVariable String id,
+                                                     @Valid @RequestBody SpecializationRequest dto) {
         return GenericResponse.ok(service.updateSpecialization(id, dto), "Specialization updated");
     }
 
     @DeleteMapping("/{id}")
-    public GenericResponse<Void> delete(@PathVariable UUID id) {
+    public GenericResponse<Void> delete(@PathVariable String id) {
         service.deleteSpecialization(id);
-        return GenericResponse.ok(null, "Specialization deleted");
+        return GenericResponse.ok(null, "Specialization marked as deleted");
     }
 }

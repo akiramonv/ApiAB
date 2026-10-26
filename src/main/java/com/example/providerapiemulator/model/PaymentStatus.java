@@ -1,7 +1,9 @@
 package com.example.providerapiemulator.model;
 
+/** Значения колонки payment.status. */
 public enum PaymentStatus {
-    processing,
+    in_process,
     success,
-    cancel
+    warning,
+    closed
 }

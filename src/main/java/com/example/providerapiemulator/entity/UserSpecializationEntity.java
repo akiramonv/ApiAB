@@ -1,19 +1,21 @@
 package com.example.providerapiemulator.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.UUID;
-
+/** Связка users <-> specializations. */
 @Entity
-@Table(name = "userspecialization")
+@Table(name = "userspecializations")
 @Getter
 @Setter
 public class UserSpecializationEntity extends BaseEntity {
-    @Column(name = "userid", nullable = false)
-    private UUID userId;
 
-    @Column(name = "specialid", nullable = false)
-    private UUID specialId;
+    @Column(name = "specialization")
+    private String specializationId;
+
+    @Column(name = "`user`")
+    private String userId;
 }

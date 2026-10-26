@@ -3,10 +3,13 @@ package com.example.providerapiemulator.repository;
 import com.example.providerapiemulator.entity.UserRoleEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
-public interface UserRoleRepository extends JpaRepository<UserRoleEntity, UUID> {
-    List<UserRoleEntity> findByUserId(UUID userId);
-List<UserRoleEntity> findByRoleId(UUID roleId);
+public interface UserRoleRepository extends JpaRepository<UserRoleEntity, String> {
+    List<UserRoleEntity> findByUserId(String userId);
+
+    List<UserRoleEntity> findByUserIdIn(Collection<String> userIds);
+
+    List<UserRoleEntity> findByRoleId(String roleId);
 }

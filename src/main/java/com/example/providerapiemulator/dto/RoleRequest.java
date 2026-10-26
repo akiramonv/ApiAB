@@ -1,8 +1,7 @@
 package com.example.providerapiemulator.dto;
 
-import com.example.providerapiemulator.model.RoleName;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 public record RoleRequest(
-        @NotNull RoleName name
+        @NotBlank String name
 ) {}

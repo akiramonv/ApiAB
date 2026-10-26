@@ -8,7 +8,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/providers")
@@ -26,8 +25,13 @@ public class ProviderController {
     }
 
     @GetMapping("/{id}")
-    public GenericResponse<ProviderDto> one(@PathVariable UUID id) {
+    public GenericResponse<ProviderDto> one(@PathVariable String id) {
         return GenericResponse.ok(service.getProvider(id));
+    }
+
+    @GetMapping("/by-organisation/{organisationId}")
+    public GenericResponse<List<ProviderDto>> byOrganisation(@PathVariable String organisationId) {
+        return GenericResponse.ok(service.getProvidersByOrganisation(organisationId));
     }
 
     @PostMapping
@@ -36,12 +40,12 @@ public class ProviderController {
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<ProviderDto> update(@PathVariable UUID id, @Valid @RequestBody ProviderRequest dto) {
+    public GenericResponse<ProviderDto> update(@PathVariable String id, @Valid @RequestBody ProviderRequest dto) {
         return GenericResponse.ok(service.updateProvider(id, dto), "Provider updated");
     }
 
     @DeleteMapping("/{id}")
-    public GenericResponse<Void> delete(@PathVariable UUID id) {
+    public GenericResponse<Void> delete(@PathVariable String id) {
         service.deleteProvider(id);
         return GenericResponse.ok(null, "Provider deleted");
     }

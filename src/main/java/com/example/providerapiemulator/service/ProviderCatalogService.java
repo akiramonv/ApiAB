@@ -1,61 +1,117 @@
 package com.example.providerapiemulator.service;
 
-import com.example.providerapiemulator.dto.*;
-import com.example.providerapiemulator.entity.*;
+import com.example.providerapiemulator.dto.AccountDto;
+import com.example.providerapiemulator.dto.AccountRequest;
+import com.example.providerapiemulator.dto.BankFilialDto;
+import com.example.providerapiemulator.dto.CategoryServiceDto;
+import com.example.providerapiemulator.dto.CategoryServiceRequest;
+import com.example.providerapiemulator.dto.CommissionDto;
+import com.example.providerapiemulator.dto.CommissionLevelDto;
+import com.example.providerapiemulator.dto.CommissionRequest;
+import com.example.providerapiemulator.dto.OrganisationDto;
+import com.example.providerapiemulator.dto.OrganisationRequest;
+import com.example.providerapiemulator.dto.ProviderDto;
+import com.example.providerapiemulator.dto.ProviderRequest;
+import com.example.providerapiemulator.dto.ProviderServiceDto;
+import com.example.providerapiemulator.dto.ProviderServiceRequest;
+import com.example.providerapiemulator.dto.RoleDto;
+import com.example.providerapiemulator.dto.RoleRequest;
+import com.example.providerapiemulator.dto.SpecializationDto;
+import com.example.providerapiemulator.dto.SpecializationRequest;
+import com.example.providerapiemulator.dto.UserDto;
+import com.example.providerapiemulator.dto.UserRequest;
+import com.example.providerapiemulator.entity.AccountTypeEntity;
+import com.example.providerapiemulator.entity.BankFilialEntity;
+import com.example.providerapiemulator.entity.CategoryServiceEntity;
+import com.example.providerapiemulator.entity.Commission;
+import com.example.providerapiemulator.entity.OrganisationEntity;
+import com.example.providerapiemulator.entity.ProviderEntity;
+import com.example.providerapiemulator.entity.ProviderServiceEntity;
+import com.example.providerapiemulator.entity.RoleEntity;
+import com.example.providerapiemulator.entity.ServiceSpecializationEntity;
+import com.example.providerapiemulator.entity.SpecializationEntity;
+import com.example.providerapiemulator.entity.UserEntity;
+import com.example.providerapiemulator.entity.UserRoleEntity;
+import com.example.providerapiemulator.entity.UserSpecializationEntity;
 import com.example.providerapiemulator.exception.NotFoundException;
-import com.example.providerapiemulator.model.*;
-import com.example.providerapiemulator.repository.*;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.WriterException;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
+import com.example.providerapiemulator.model.CommissionLevelName;
+import com.example.providerapiemulator.repository.AccountTypeRepository;
+import com.example.providerapiemulator.repository.BankFilialRepository;
+import com.example.providerapiemulator.repository.CategoryServiceRepository;
+import com.example.providerapiemulator.repository.CommissionRepository;
+import com.example.providerapiemulator.repository.OrganisationRepository;
+import com.example.providerapiemulator.repository.ProviderRepository;
+import com.example.providerapiemulator.repository.ProviderServiceRepository;
+import com.example.providerapiemulator.repository.RoleRepository;
+import com.example.providerapiemulator.repository.ServiceSpecializationRepository;
+import com.example.providerapiemulator.repository.SpecializationRepository;
+import com.example.providerapiemulator.repository.UserRepository;
+import com.example.providerapiemulator.repository.UserRoleRepository;
+import com.example.providerapiemulator.repository.UserSpecializationRepository;
+import com.example.providerapiemulator.support.Amounts;
+import com.example.providerapiemulator.support.Ids;
+import com.example.providerapiemulator.support.QrCodes;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Работа со справочниками БД billing: сервисы, категории, провайдеры, счета,
+ * пользователи, роли, специализации, комиссии и организации.
+ *
+ * Особенности схемы billing, которые тут учтены:
+ * - все первичные ключи varchar (у старых записей числа, у новых - UUID строкой);
+ * - суммы услуг лежат строками в сомах, разделитель может быть "." или ",";
+ * - у сервисов, категорий, специализаций и пользователей есть флаг deleted,
+ *   поэтому DELETE помечает запись удалённой, а не ломает внешние ключи.
+ */
 @Service
 @Transactional
 public class ProviderCatalogService {
 
-    private final ProviderServiceRepository providerServiceRepository;
-    private final CategoryServiceRepository categoryServiceRepository;
+    private final ProviderServiceRepository serviceRepository;
+    private final CategoryServiceRepository categoryRepository;
     private final ProviderRepository providerRepository;
     private final SpecializationRepository specializationRepository;
     private final UserRepository userRepository;
     private final UserSpecializationRepository userSpecializationRepository;
     private final ServiceSpecializationRepository serviceSpecializationRepository;
-    private final AccountRepository accountRepository;
+    private final AccountTypeRepository accountRepository;
     private final CommissionRepository commissionRepository;
-    private final CommissionLevelRepository commissionLevelRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
-    private final PaymentRepository paymentRepository;
+    private final OrganisationRepository organisationRepository;
+    private final BankFilialRepository bankFilialRepository;
+    private final LookupFactory lookupFactory;
 
-    public ProviderCatalogService(
-            ProviderServiceRepository providerServiceRepository,
-            CategoryServiceRepository categoryServiceRepository,
-            ProviderRepository providerRepository,
-            SpecializationRepository specializationRepository,
-            UserRepository userRepository,
-            UserSpecializationRepository userSpecializationRepository,
-            ServiceSpecializationRepository serviceSpecializationRepository,
-            AccountRepository accountRepository,
-            CommissionRepository commissionRepository,
-            CommissionLevelRepository commissionLevelRepository,
-            RoleRepository roleRepository,
-            UserRoleRepository userRoleRepository,
-            PaymentRepository paymentRepository
-    ) {
-        this.providerServiceRepository = providerServiceRepository;
-        this.categoryServiceRepository = categoryServiceRepository;
+    public ProviderCatalogService(ProviderServiceRepository serviceRepository,
+                                  CategoryServiceRepository categoryRepository,
+                                  ProviderRepository providerRepository,
+                                  SpecializationRepository specializationRepository,
+                                  UserRepository userRepository,
+                                  UserSpecializationRepository userSpecializationRepository,
+                                  ServiceSpecializationRepository serviceSpecializationRepository,
+                                  AccountTypeRepository accountRepository,
+                                  CommissionRepository commissionRepository,
+                                  RoleRepository roleRepository,
+                                  UserRoleRepository userRoleRepository,
+                                  OrganisationRepository organisationRepository,
+                                  BankFilialRepository bankFilialRepository,
+                                  LookupFactory lookupFactory) {
+        this.serviceRepository = serviceRepository;
+        this.categoryRepository = categoryRepository;
         this.providerRepository = providerRepository;
         this.specializationRepository = specializationRepository;
         this.userRepository = userRepository;
@@ -63,369 +119,620 @@ public class ProviderCatalogService {
         this.serviceSpecializationRepository = serviceSpecializationRepository;
         this.accountRepository = accountRepository;
         this.commissionRepository = commissionRepository;
-        this.commissionLevelRepository = commissionLevelRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
-        this.paymentRepository = paymentRepository;
+        this.organisationRepository = organisationRepository;
+        this.bankFilialRepository = bankFilialRepository;
+        this.lookupFactory = lookupFactory;
+    }
+
+    // ------------------------------------------------------------------ услуги
+
+    @Transactional(readOnly = true)
+    public List<ProviderServiceDto> getAllServices(boolean includeDeleted) {
+        return toServiceDtos(filterDeleted(serviceRepository.findAll(), ProviderServiceEntity::getDeleted, includeDeleted));
     }
 
     @Transactional(readOnly = true)
-    public List<ProviderServiceDto> getAllServices() {
-        return providerServiceRepository.findAll().stream().map(this::toDto).toList();
+    public ProviderServiceDto getService(String id) {
+        return toServiceDtos(List.of(requireService(id))).get(0);
     }
 
     @Transactional(readOnly = true)
-    public ProviderServiceDto getService(UUID id) {
-        return toDto(providerServiceRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Service not found: " + id)));
+    public List<ProviderServiceDto> getServicesByCategory(String categoryId) {
+        return toServiceDtos(filterDeleted(serviceRepository.findByCategoryId(categoryId),
+                ProviderServiceEntity::getDeleted, false));
     }
 
     @Transactional(readOnly = true)
-    public List<ProviderServiceDto> getServicesByCategory(UUID categoryId) {
-        return providerServiceRepository.findByCategoryId(categoryId).stream().map(this::toDto).toList();
+    public List<ProviderServiceDto> getServicesByProvider(String providerId) {
+        return toServiceDtos(filterDeleted(serviceRepository.findByProviderId(providerId),
+                ProviderServiceEntity::getDeleted, false));
     }
 
     @Transactional(readOnly = true)
-    public List<ProviderServiceDto> getServicesByProvider(UUID providerId) {
-        return providerServiceRepository.findByProvId(providerId).stream().map(this::toDto).toList();
+    public List<ProviderServiceDto> getServicesByAccount(String accountId) {
+        return toServiceDtos(filterDeleted(serviceRepository.findByAccountTypeId(accountId),
+                ProviderServiceEntity::getDeleted, false));
     }
 
+    /** Услуги, доступные пользователю по его специализациям. */
     @Transactional(readOnly = true)
-    public List<ProviderServiceDto> getServicesByAccount(UUID accountId) {
-        return providerServiceRepository.findByAccountId(accountId).stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<ProviderServiceDto> getServicesByUserSpecialization(UUID userId) {
-        Set<UUID> specialIds = userSpecializationRepository.findByUserId(userId).stream()
-                .map(UserSpecializationEntity::getSpecialId)
+    public List<ProviderServiceDto> getServicesByUserSpecialization(String userId) {
+        requireUser(userId);
+        Set<String> specializationIds = userSpecializationRepository.findByUserId(userId).stream()
+                .map(UserSpecializationEntity::getSpecializationId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-
-        if (specialIds.isEmpty()) {
+        if (specializationIds.isEmpty()) {
             return List.of();
         }
-
-        Set<UUID> serviceIds = serviceSpecializationRepository.findAll().stream()
-                .filter(ss -> specialIds.contains(ss.getSpecialId()))
+        Set<String> serviceIds = serviceSpecializationRepository.findBySpecializationIdIn(specializationIds).stream()
                 .map(ServiceSpecializationEntity::getServiceId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-
-        return providerServiceRepository.findAllById(serviceIds).stream().map(this::toDto).toList();
+        if (serviceIds.isEmpty()) {
+            return List.of();
+        }
+        return toServiceDtos(filterDeleted(serviceRepository.findAllById(serviceIds),
+                ProviderServiceEntity::getDeleted, false));
     }
 
     public ProviderServiceDto createService(ProviderServiceRequest dto) {
-        ProviderServiceEntity e = new ProviderServiceEntity();
-        e.setName(dto.name());
-        e.setPrice(dto.price() != null ? dto.price() : BigDecimal.ZERO);
-        e.setCategoryId(dto.categoryId());
-        e.setProvId(dto.provId());
-        e.setAccountId(dto.accountId());
-        e.setCommId(dto.commId());
-        ProviderServiceEntity saved = providerServiceRepository.save(e);
+        ProviderServiceEntity entity = new ProviderServiceEntity();
+        entity.setId(Ids.newId());
+        entity.setDeleted(false);
+        applyService(entity, dto);
+        ProviderServiceEntity saved = serviceRepository.save(entity);
         syncServiceSpecializations(saved.getId(), dto.specializationIds());
-        return toDto(saved);
+        return getService(saved.getId());
     }
 
-    public ProviderServiceDto updateService(UUID id, ProviderServiceRequest dto) {
-        ProviderServiceEntity e = providerServiceRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Service not found: " + id));
-        e.setName(dto.name());
-        e.setPrice(dto.price() != null ? dto.price() : BigDecimal.ZERO);
-        e.setCategoryId(dto.categoryId());
-        e.setProvId(dto.provId());
-        e.setAccountId(dto.accountId());
-        e.setCommId(dto.commId());
-        ProviderServiceEntity saved = providerServiceRepository.save(e);
-        syncServiceSpecializations(saved.getId(), dto.specializationIds());
-        return toDto(saved);
+    public ProviderServiceDto updateService(String id, ProviderServiceRequest dto) {
+        ProviderServiceEntity entity = requireService(id);
+        applyService(entity, dto);
+        serviceRepository.save(entity);
+        syncServiceSpecializations(id, dto.specializationIds());
+        return getService(id);
     }
 
-    public void deleteService(UUID id) {
-        if (!providerServiceRepository.existsById(id)) {
-            throw new NotFoundException("Service not found: " + id);
+    /** Мягкое удаление: на provider_services ссылается payment_services. */
+    public void deleteService(String id) {
+        ProviderServiceEntity entity = requireService(id);
+        entity.setDeleted(true);
+        serviceRepository.save(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public String getServiceQrCode(String id) {
+        ProviderServiceEntity entity = requireService(id);
+        String stored = QrCodes.stripDataUri(entity.getQrCodeBase64());
+        if (stored != null && !stored.isBlank()) {
+            return stored;
         }
-        providerServiceRepository.deleteById(id);
+        String link = Ids.trimToNull(entity.getQrLink());
+        if (link == null) {
+            throw new NotFoundException("QR link not found for service: " + id);
+        }
+        return QrCodes.generateBase64(link);
+    }
+
+    private void applyService(ProviderServiceEntity entity, ProviderServiceRequest dto) {
+        requireProvider(dto.providerId());
+        if (!Ids.isBlank(dto.categoryId()) && !categoryRepository.existsById(dto.categoryId())) {
+            throw new NotFoundException("Category not found: " + dto.categoryId());
+        }
+        if (!Ids.isBlank(dto.accountTypeId()) && !accountRepository.existsById(dto.accountTypeId())) {
+            throw new NotFoundException("Account not found: " + dto.accountTypeId());
+        }
+        if (!Ids.isBlank(dto.commissionId()) && !commissionRepository.existsById(dto.commissionId())) {
+            throw new NotFoundException("Commission not found: " + dto.commissionId());
+        }
+
+        entity.setName(dto.name());
+        entity.setProviderId(dto.providerId());
+        entity.setCode(dto.code());
+        entity.setCheckSource(Ids.trimToNull(dto.checkSource()));
+        entity.setCategoryId(Ids.trimToNull(dto.categoryId()));
+        entity.setAccountTypeId(Ids.trimToNull(dto.accountTypeId()));
+        entity.setCommissionId(Ids.trimToNull(dto.commissionId()));
+
+        BigDecimal price = Amounts.zeroIfNull(dto.price());
+        entity.setSumm(Amounts.formatSom(price));
+        entity.setServicePrice(Amounts.formatSom(price));
+        entity.setTotalSumm(Amounts.formatSom(price));
+
+        entity.setIncrease(dto.increase() != null ? dto.increase() : Boolean.FALSE);
+        entity.setIncreaseText(dto.increaseText());
+        entity.setServiceType(dto.serviceType());
+        entity.setServiceAccount(dto.serviceAccount());
+        entity.setServiceIdPl(dto.serviceIdPl());
+        entity.setQrLink(dto.qrLink());
+        if (dto.deleted() != null) {
+            entity.setDeleted(dto.deleted());
+        }
+    }
+
+    private List<ProviderServiceDto> toServiceDtos(List<ProviderServiceEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Lookups lookups = lookupFactory.load();
+        Map<String, List<String>> specializations = specializationNamesByService(ids(rows), lookups);
+        return rows.stream()
+                .map(row -> toDto(row, lookups, specializations.getOrDefault(row.getId(), List.of())))
+                .toList();
+    }
+
+    private ProviderServiceDto toDto(ProviderServiceEntity entity, Lookups lookups, List<String> specializations) {
+        return new ProviderServiceDto(
+                entity.getId(),
+                entity.getName(),
+                entity.getCode(),
+                Amounts.parseSom(entity.getSumm()),
+                Amounts.parseSom(entity.getServicePrice()),
+                Amounts.parseSom(entity.getTotalSumm()),
+                entity.getCheckSource(),
+                entity.getCategoryId(),
+                lookups.categoryName(entity.getCategoryId()),
+                entity.getProviderId(),
+                lookups.providerName(entity.getProviderId()),
+                entity.getAccountTypeId(),
+                lookups.accountName(entity.getAccountTypeId()),
+                entity.getCommissionId(),
+                lookups.commissionDetails(entity.getCommissionId()),
+                entity.getIncrease(),
+                entity.getIncreaseText(),
+                entity.getServiceType(),
+                entity.getServiceAccount(),
+                entity.getDeleted(),
+                entity.getServiceIdPl(),
+                entity.getQrLink(),
+                entity.getQrCodeBase64() != null && !entity.getQrCodeBase64().isBlank(),
+                specializations
+        );
+    }
+
+    private Map<String, List<String>> specializationNamesByService(Collection<String> serviceIds, Lookups lookups) {
+        Map<String, List<String>> result = new HashMap<>();
+        for (ServiceSpecializationEntity link : serviceSpecializationRepository.findByServiceIdIn(serviceIds)) {
+            String name = lookups.specializationName(link.getSpecializationId());
+            if (name != null) {
+                result.computeIfAbsent(link.getServiceId(), key -> new ArrayList<>()).add(name);
+            }
+        }
+        return result;
+    }
+
+    private void syncServiceSpecializations(String serviceId, List<String> specializationIds) {
+        if (specializationIds == null) {
+            return;
+        }
+        serviceSpecializationRepository.deleteAll(serviceSpecializationRepository.findByServiceId(serviceId));
+        serviceSpecializationRepository.flush();
+        for (String specializationId : distinct(specializationIds)) {
+            if (!specializationRepository.existsById(specializationId)) {
+                throw new NotFoundException("Specialization not found: " + specializationId);
+            }
+            ServiceSpecializationEntity link = new ServiceSpecializationEntity();
+            link.setId(Ids.newId());
+            link.setServiceId(serviceId);
+            link.setSpecializationId(specializationId);
+            serviceSpecializationRepository.save(link);
+        }
+    }
+
+    // -------------------------------------------------------------- категории
+
+    @Transactional(readOnly = true)
+    public List<CategoryServiceDto> getAllCategories(boolean includeDeleted) {
+        return toCategoryDtos(filterDeleted(categoryRepository.findAll(), CategoryServiceEntity::getDeleted, includeDeleted));
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryServiceDto> getAllCategories() {
-        return categoryServiceRepository.findAll().stream().map(this::toDto).toList();
+    public CategoryServiceDto getCategory(String id) {
+        return toCategoryDtos(List.of(requireCategory(id))).get(0);
     }
 
     @Transactional(readOnly = true)
-    public CategoryServiceDto getCategory(UUID id) {
-        return toDto(categoryServiceRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Category not found: " + id)));
+    public List<CategoryServiceDto> getCategoriesByProvider(String providerId) {
+        return toCategoryDtos(filterDeleted(categoryRepository.findByProviderId(providerId),
+                CategoryServiceEntity::getDeleted, false));
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryServiceDto> getCategoriesByProvider(UUID providerId) {
-        return categoryServiceRepository.findByProvId(providerId).stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<CategoryServiceDto> getCategoriesByParent(UUID parentId) {
-        return categoryServiceRepository.findByPrntCategory(parentId).stream().map(this::toDto).toList();
+    public List<CategoryServiceDto> getCategoriesByParent(String parentId) {
+        return toCategoryDtos(filterDeleted(categoryRepository.findByParentCategory(parentId),
+                CategoryServiceEntity::getDeleted, false));
     }
 
     public CategoryServiceDto createCategory(CategoryServiceRequest dto) {
-        CategoryServiceEntity e = new CategoryServiceEntity();
-        e.setName(dto.name());
-        e.setPrntCategory(dto.prntCategory());
-        e.setProvId(dto.provId());
-        return toDto(categoryServiceRepository.save(e));
+        CategoryServiceEntity entity = new CategoryServiceEntity();
+        entity.setId(Ids.newId());
+        entity.setDeleted(false);
+        applyCategory(entity, dto);
+        return getCategory(categoryRepository.save(entity).getId());
     }
 
-    public CategoryServiceDto updateCategory(UUID id, CategoryServiceRequest dto) {
-        CategoryServiceEntity e = categoryServiceRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Category not found: " + id));
-        e.setName(dto.name());
-        e.setPrntCategory(dto.prntCategory());
-        e.setProvId(dto.provId());
-        return toDto(categoryServiceRepository.save(e));
+    public CategoryServiceDto updateCategory(String id, CategoryServiceRequest dto) {
+        CategoryServiceEntity entity = requireCategory(id);
+        applyCategory(entity, dto);
+        categoryRepository.save(entity);
+        return getCategory(id);
     }
 
-    public void deleteCategory(UUID id) {
-        if (!categoryServiceRepository.existsById(id)) {
-            throw new NotFoundException("Category not found: " + id);
+    public void deleteCategory(String id) {
+        CategoryServiceEntity entity = requireCategory(id);
+        entity.setDeleted(true);
+        categoryRepository.save(entity);
+    }
+
+    private void applyCategory(CategoryServiceEntity entity, CategoryServiceRequest dto) {
+        requireProvider(dto.providerId());
+        if (!Ids.isBlank(dto.parentCategoryId())) {
+            if (dto.parentCategoryId().equals(entity.getId())) {
+                throw new IllegalArgumentException("Category cannot be its own parent");
+            }
+            requireCategory(dto.parentCategoryId());
         }
-        categoryServiceRepository.deleteById(id);
+        entity.setName(dto.name());
+        entity.setParentCategory(Ids.trimToNull(dto.parentCategoryId()));
+        entity.setIcon(dto.icon());
+        entity.setProviderId(dto.providerId());
+        if (dto.deleted() != null) {
+            entity.setDeleted(dto.deleted());
+        }
     }
+
+    private List<CategoryServiceDto> toCategoryDtos(List<CategoryServiceEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Lookups lookups = lookupFactory.load();
+        return rows.stream()
+                .map(row -> new CategoryServiceDto(
+                        row.getId(),
+                        row.getName(),
+                        row.getParentCategory(),
+                        lookups.categoryName(row.getParentCategory()),
+                        row.getIcon(),
+                        row.getDeleted(),
+                        row.getProviderId(),
+                        lookups.providerName(row.getProviderId())))
+                .toList();
+    }
+
+    // -------------------------------------------------------------- провайдеры
 
     @Transactional(readOnly = true)
     public List<ProviderDto> getAllProviders() {
-        return providerRepository.findAll().stream().map(this::toDto).toList();
+        return toProviderDtos(providerRepository.findAll());
     }
 
     @Transactional(readOnly = true)
-    public ProviderDto getProvider(UUID id) {
-        return toDto(providerRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Provider not found: " + id)));
+    public ProviderDto getProvider(String id) {
+        return toProviderDtos(List.of(requireProvider(id))).get(0);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProviderDto> getProvidersByOrganisation(String organisationId) {
+        return toProviderDtos(providerRepository.findByOrganisationId(organisationId));
     }
 
     public ProviderDto createProvider(ProviderRequest dto) {
-        ProviderEntity e = new ProviderEntity();
-        e.setFullName(dto.fullName());
-        e.setShortName(dto.shortName());
-        e.setCommLvl(dto.commLvl());
-        e.setCommId(dto.commId());
-        return toDto(providerRepository.save(e));
+        ProviderEntity entity = new ProviderEntity();
+        entity.setId(Ids.newId());
+        applyProvider(entity, dto);
+        return getProvider(providerRepository.save(entity).getId());
     }
 
-    public ProviderDto updateProvider(UUID id, ProviderRequest dto) {
-        ProviderEntity e = providerRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Provider not found: " + id));
-        e.setFullName(dto.fullName());
-        e.setShortName(dto.shortName());
-        e.setCommLvl(dto.commLvl());
-        e.setCommId(dto.commId());
-        return toDto(providerRepository.save(e));
+    public ProviderDto updateProvider(String id, ProviderRequest dto) {
+        ProviderEntity entity = requireProvider(id);
+        applyProvider(entity, dto);
+        providerRepository.save(entity);
+        return getProvider(id);
     }
 
-    public void deleteProvider(UUID id) {
-        if (!providerRepository.existsById(id)) {
-            throw new NotFoundException("Provider not found: " + id);
-        }
+    public void deleteProvider(String id) {
+        requireProvider(id);
         providerRepository.deleteById(id);
     }
 
+    private void applyProvider(ProviderEntity entity, ProviderRequest dto) {
+        if (!Ids.isBlank(dto.commissionId()) && !commissionRepository.existsById(dto.commissionId())) {
+            throw new NotFoundException("Commission not found: " + dto.commissionId());
+        }
+        if (!Ids.isBlank(dto.organisationId()) && !organisationRepository.existsById(dto.organisationId())) {
+            throw new NotFoundException("Organisation not found: " + dto.organisationId());
+        }
+        if (!Ids.isBlank(dto.bankFilialId()) && !bankFilialRepository.existsById(dto.bankFilialId())) {
+            throw new NotFoundException("Bank filial not found: " + dto.bankFilialId());
+        }
+
+        entity.setName(dto.name());
+        entity.setAccount(dto.account());
+        entity.setCode(dto.code());
+        entity.setInn(dto.inn());
+        if (dto.password() != null) {
+            entity.setPassword(dto.password());
+        }
+        entity.setCommissionLevel(dto.commissionLevel() == null ? null : dto.commissionLevel().name());
+        entity.setCommissionId(Ids.trimToNull(dto.commissionId()));
+        entity.setOrganisationId(Ids.trimToNull(dto.organisationId()));
+        entity.setAddress(dto.address());
+        entity.setPhoneNumber(dto.phoneNumber());
+        entity.setPostalCode(dto.postalCode());
+        entity.setDirector(dto.director());
+        entity.setChiefAccountant(dto.chiefAccountant());
+        entity.setBik(dto.bik());
+        entity.setGni(dto.gni());
+        entity.setOkpo(dto.okpo());
+        entity.setBankAddress(dto.bankAddress());
+        entity.setBankFilialId(Ids.trimToNull(dto.bankFilialId()));
+        entity.setLevelIdPl(dto.levelIdPl());
+        entity.setPaycodeManual(dto.paycodeManual());
+        entity.setFioInnHide(dto.fioInnHide());
+        entity.setDisableStatQr(dto.disableStatQr());
+        entity.setRequireInnForPayment(dto.requireInnForPayment());
+    }
+
+    private List<ProviderDto> toProviderDtos(List<ProviderEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Lookups lookups = lookupFactory.load();
+        return rows.stream()
+                .map(row -> new ProviderDto(
+                        row.getId(),
+                        row.getName(),
+                        row.getAccount(),
+                        row.getCode(),
+                        row.getInn(),
+                        row.getCommissionLevel(),
+                        row.getCommissionId(),
+                        lookups.commissionDetails(row.getCommissionId()),
+                        row.getOrganisationId(),
+                        lookups.organisationName(row.getOrganisationId()),
+                        row.getAddress(),
+                        row.getPhoneNumber(),
+                        row.getPostalCode(),
+                        row.getDirector(),
+                        row.getChiefAccountant(),
+                        row.getBik(),
+                        row.getGni(),
+                        row.getOkpo(),
+                        row.getBankAddress(),
+                        row.getBankFilialId(),
+                        lookups.bankFilialName(row.getBankFilialId()),
+                        row.getLevelIdPl(),
+                        row.getPaycodeManual(),
+                        row.getFioInnHide(),
+                        row.getDisableStatQr(),
+                        row.getRequireInnForPayment()))
+                .toList();
+    }
+
+    // ---------------------------------------------------------- специализации
+
     @Transactional(readOnly = true)
-    public List<SpecializationDto> getAllSpecializations() {
-        return specializationRepository.findAll().stream().map(this::toDto).toList();
+    public List<SpecializationDto> getAllSpecializations(boolean includeDeleted) {
+        return toSpecializationDtos(filterDeleted(specializationRepository.findAll(),
+                SpecializationEntity::getDeleted, includeDeleted));
     }
 
     @Transactional(readOnly = true)
-    public SpecializationDto getSpecialization(UUID id) {
-        return toDto(specializationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Specialization not found: " + id)));
+    public SpecializationDto getSpecialization(String id) {
+        return toSpecializationDtos(List.of(requireSpecialization(id))).get(0);
     }
 
     @Transactional(readOnly = true)
-    public List<SpecializationDto> getSpecializationsByProvider(UUID providerId) {
-        return specializationRepository.findByProvId(providerId).stream().map(this::toDto).toList();
+    public List<SpecializationDto> getSpecializationsByProvider(String providerId) {
+        return toSpecializationDtos(filterDeleted(specializationRepository.findByProviderId(providerId),
+                SpecializationEntity::getDeleted, false));
     }
 
     public SpecializationDto createSpecialization(SpecializationRequest dto) {
-        SpecializationEntity e = new SpecializationEntity();
-        e.setName(dto.name());
-        e.setProvId(dto.provId());
-        return toDto(specializationRepository.save(e));
+        SpecializationEntity entity = new SpecializationEntity();
+        entity.setId(Ids.newId());
+        entity.setDeleted(false);
+        applySpecialization(entity, dto);
+        return getSpecialization(specializationRepository.save(entity).getId());
     }
 
-    public SpecializationDto updateSpecialization(UUID id, SpecializationRequest dto) {
-        SpecializationEntity e = specializationRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Specialization not found: " + id));
-        e.setName(dto.name());
-        e.setProvId(dto.provId());
-        return toDto(specializationRepository.save(e));
+    public SpecializationDto updateSpecialization(String id, SpecializationRequest dto) {
+        SpecializationEntity entity = requireSpecialization(id);
+        applySpecialization(entity, dto);
+        specializationRepository.save(entity);
+        return getSpecialization(id);
     }
 
-    public void deleteSpecialization(UUID id) {
-        if (!specializationRepository.existsById(id)) {
-            throw new NotFoundException("Specialization not found: " + id);
+    public void deleteSpecialization(String id) {
+        SpecializationEntity entity = requireSpecialization(id);
+        entity.setDeleted(true);
+        specializationRepository.save(entity);
+    }
+
+    private void applySpecialization(SpecializationEntity entity, SpecializationRequest dto) {
+        requireProvider(dto.providerId());
+        entity.setName(dto.name());
+        entity.setProviderId(dto.providerId());
+        if (dto.deleted() != null) {
+            entity.setDeleted(dto.deleted());
         }
-        specializationRepository.deleteById(id);
+    }
+
+    private List<SpecializationDto> toSpecializationDtos(List<SpecializationEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Lookups lookups = lookupFactory.load();
+        return rows.stream()
+                .map(row -> new SpecializationDto(
+                        row.getId(),
+                        row.getName(),
+                        row.getDeleted(),
+                        row.getProviderId(),
+                        lookups.providerName(row.getProviderId())))
+                .toList();
+    }
+
+    // ------------------------------------------------------------ пользователи
+
+    @Transactional(readOnly = true)
+    public List<UserDto> getAllUsers(boolean includeDeleted) {
+        return toUserDtos(filterDeleted(userRepository.findAll(), UserEntity::getDeleted, includeDeleted));
     }
 
     @Transactional(readOnly = true)
-    public List<UserDto> getAllUsers() {
-        return userRepository.findAll().stream().map(this::toDto).toList();
+    public UserDto getUser(String id) {
+        return toUserDtos(List.of(requireUser(id))).get(0);
     }
 
     @Transactional(readOnly = true)
-    public UserDto getUser(UUID id) {
-        return toDto(userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id)));
+    public List<UserDto> getUsersByProvider(String providerId) {
+        return toUserDtos(filterDeleted(userRepository.findByProviderId(providerId), UserEntity::getDeleted, false));
     }
 
     @Transactional(readOnly = true)
-    public List<UserDto> getUsersByProvider(UUID providerId) {
-        return userRepository.findByProvId(providerId).stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserDto> getUsersBySpecialization(UUID specialId) {
-        Set<UUID> userIds = userSpecializationRepository.findBySpecialId(specialId).stream()
+    public List<UserDto> getUsersBySpecialization(String specializationId) {
+        requireSpecialization(specializationId);
+        Set<String> userIds = userSpecializationRepository.findBySpecializationId(specializationId).stream()
                 .map(UserSpecializationEntity::getUserId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        return userRepository.findAllById(userIds).stream().map(this::toDto).toList();
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return toUserDtos(filterDeleted(userRepository.findAllById(userIds), UserEntity::getDeleted, false));
     }
 
     public UserDto createUser(UserRequest dto) {
-        UserEntity e = new UserEntity();
-        e.setName(dto.name());
-        e.setEmail(dto.email());
-        e.setPassword(dto.password());
-        e.setProvId(dto.provId());
-        UserEntity saved = userRepository.save(e);
+        UserEntity entity = new UserEntity();
+        entity.setId(Ids.newId());
+        entity.setDeleted(false);
+        entity.setFailedLoginAttempts(0);
+        entity.setMustChangePassword(false);
+        applyUser(entity, dto);
+        UserEntity saved = userRepository.save(entity);
         syncUserRoles(saved.getId(), dto.roleIds());
         syncUserSpecializations(saved.getId(), dto.specializationIds());
-        return toDto(saved);
+        return getUser(saved.getId());
     }
 
-    public UserDto updateUser(UUID id, UserRequest dto) {
-        UserEntity e = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        e.setName(dto.name());
-        e.setEmail(dto.email());
-        e.setPassword(dto.password());
-        e.setProvId(dto.provId());
-        UserEntity saved = userRepository.save(e);
-        syncUserRoles(saved.getId(), dto.roleIds());
-        syncUserSpecializations(saved.getId(), dto.specializationIds());
-        return toDto(saved);
+    public UserDto updateUser(String id, UserRequest dto) {
+        UserEntity entity = requireUser(id);
+        applyUser(entity, dto);
+        userRepository.save(entity);
+        syncUserRoles(id, dto.roleIds());
+        syncUserSpecializations(id, dto.specializationIds());
+        return getUser(id);
     }
 
-    public void deleteUser(UUID id) {
-        if (!userRepository.existsById(id)) {
-            throw new NotFoundException("User not found: " + id);
+    public void deleteUser(String id) {
+        UserEntity entity = requireUser(id);
+        entity.setDeleted(true);
+        userRepository.save(entity);
+    }
+
+    private void applyUser(UserEntity entity, UserRequest dto) {
+        if (!Ids.isBlank(dto.providerId())) {
+            requireProvider(dto.providerId());
         }
-        userRepository.deleteById(id);
-    }
-
-    @Transactional(readOnly = true)
-    public List<AccountDto> getAllAccounts() {
-        return accountRepository.findAll().stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public AccountDto getAccount(UUID id) {
-        return toDto(accountRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Account not found: " + id)));
-    }
-
-    @Transactional(readOnly = true)
-    public List<AccountDto> getAccountsByProvider(UUID providerId) {
-        return accountRepository.findByProvId(providerId).stream().map(this::toDto).toList();
-    }
-
-    public AccountDto createAccount(AccountRequest dto) {
-        AccountEntity e = new AccountEntity();
-        e.setName(dto.name());
-        e.setOwnerName(dto.ownerName());
-        e.setProvId(dto.provId());
-        return toDto(accountRepository.save(e));
-    }
-
-    public AccountDto updateAccount(UUID id, AccountRequest dto) {
-        AccountEntity e = accountRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Account not found: " + id));
-        e.setName(dto.name());
-        e.setOwnerName(dto.ownerName());
-        e.setProvId(dto.provId());
-        return toDto(accountRepository.save(e));
-    }
-
-    public void deleteAccount(UUID id) {
-        if (!accountRepository.existsById(id)) {
-            throw new NotFoundException("Account not found: " + id);
+        entity.setName(dto.name());
+        entity.setEmail(dto.email());
+        entity.setPassword(dto.password());
+        entity.setProviderId(Ids.trimToNull(dto.providerId()));
+        if (dto.deleted() != null) {
+            entity.setDeleted(dto.deleted());
         }
-        accountRepository.deleteById(id);
-    }
-
-    @Transactional(readOnly = true)
-    public List<CommissionDto> getAllCommissions() {
-        return commissionRepository.findAll().stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public CommissionDto getCommission(UUID id) {
-        return toDto(commissionRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Commission not found: " + id)));
-    }
-
-    public CommissionDto createCommission(CommissionRequest dto) {
-        Commission e = new Commission();
-        e.setCommissionType(dto.commissionType());
-        e.setCommissionValue(dto.commissionValue());
-        return toDto(commissionRepository.save(e));
-    }
-
-    public CommissionDto updateCommission(UUID id, CommissionRequest dto) {
-        Commission e = commissionRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Commission not found: " + id));
-        e.setCommissionType(dto.commissionType());
-        e.setCommissionValue(dto.commissionValue());
-        return toDto(commissionRepository.save(e));
-    }
-
-    public void deleteCommission(UUID id) {
-        if (!commissionRepository.existsById(id)) {
-            throw new NotFoundException("Commission not found: " + id);
+        if (dto.mustChangePassword() != null) {
+            entity.setMustChangePassword(dto.mustChangePassword());
         }
-        commissionRepository.deleteById(id);
-    }
-
-    @Transactional(readOnly = true)
-    public List<CommissionLevelDto> getAllCommissionLevels() {
-        return commissionLevelRepository.findAll().stream().map(this::toDto).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public CommissionLevelDto getCommissionLevel(UUID id) {
-        return toDto(commissionLevelRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Commission level not found: " + id)));
-    }
-
-    public CommissionLevelDto createCommissionLevel(CommissionLevelRequest dto) {
-        CommissionLevel e = new CommissionLevel();
-        e.setName(dto.name());
-        return toDto(commissionLevelRepository.save(e));
-    }
-
-    public CommissionLevelDto updateCommissionLevel(UUID id, CommissionLevelRequest dto) {
-        CommissionLevel e = commissionLevelRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Commission level not found: " + id));
-        e.setName(dto.name());
-        return toDto(commissionLevelRepository.save(e));
-    }
-
-    public void deleteCommissionLevel(UUID id) {
-        if (!commissionLevelRepository.existsById(id)) {
-            throw new NotFoundException("Commission level not found: " + id);
+        if (entity.getFailedLoginAttempts() == null) {
+            entity.setFailedLoginAttempts(0);
         }
-        commissionLevelRepository.deleteById(id);
+        if (entity.getMustChangePassword() == null) {
+            entity.setMustChangePassword(false);
+        }
     }
+
+    private List<UserDto> toUserDtos(List<UserEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Lookups lookups = lookupFactory.load();
+        Collection<String> userIds = ids(rows);
+
+        Map<String, List<String>> roles = new HashMap<>();
+        for (UserRoleEntity link : userRoleRepository.findByUserIdIn(userIds)) {
+            String name = lookups.roleName(link.getRoleId());
+            if (name != null) {
+                roles.computeIfAbsent(link.getUserId(), key -> new ArrayList<>()).add(name);
+            }
+        }
+
+        Map<String, List<String>> specializations = new HashMap<>();
+        for (UserSpecializationEntity link : userSpecializationRepository.findByUserIdIn(userIds)) {
+            String name = lookups.specializationName(link.getSpecializationId());
+            if (name != null) {
+                specializations.computeIfAbsent(link.getUserId(), key -> new ArrayList<>()).add(name);
+            }
+        }
+
+        return rows.stream()
+                .map(row -> new UserDto(
+                        row.getId(),
+                        row.getName(),
+                        row.getEmail(),
+                        row.getPassword(),
+                        row.getProviderId(),
+                        lookups.providerName(row.getProviderId()),
+                        row.getDeleted(),
+                        row.getFailedLoginAttempts(),
+                        row.getLockoutEnd(),
+                        row.getMustChangePassword(),
+                        roles.getOrDefault(row.getId(), List.of()),
+                        specializations.getOrDefault(row.getId(), List.of())))
+                .toList();
+    }
+
+    private void syncUserRoles(String userId, List<String> roleIds) {
+        if (roleIds == null) {
+            return;
+        }
+        userRoleRepository.deleteAll(userRoleRepository.findByUserId(userId));
+        userRoleRepository.flush();
+        for (String roleId : distinct(roleIds)) {
+            if (!roleRepository.existsById(roleId)) {
+                throw new NotFoundException("Role not found: " + roleId);
+            }
+            UserRoleEntity link = new UserRoleEntity();
+            link.setId(Ids.newId());
+            link.setUserId(userId);
+            link.setRoleId(roleId);
+            userRoleRepository.save(link);
+        }
+    }
+
+    private void syncUserSpecializations(String userId, List<String> specializationIds) {
+        if (specializationIds == null) {
+            return;
+        }
+        userSpecializationRepository.deleteAll(userSpecializationRepository.findByUserId(userId));
+        userSpecializationRepository.flush();
+        for (String specializationId : distinct(specializationIds)) {
+            if (!specializationRepository.existsById(specializationId)) {
+                throw new NotFoundException("Specialization not found: " + specializationId);
+            }
+            UserSpecializationEntity link = new UserSpecializationEntity();
+            link.setId(Ids.newId());
+            link.setUserId(userId);
+            link.setSpecializationId(specializationId);
+            userSpecializationRepository.save(link);
+        }
+    }
+
+    // ------------------------------------------------------------------- роли
 
     @Transactional(readOnly = true)
     public List<RoleDto> getAllRoles() {
@@ -433,592 +740,332 @@ public class ProviderCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public RoleDto getRole(UUID id) {
-        return toDto(roleRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id)));
+    public RoleDto getRole(String id) {
+        return toDto(requireRole(id));
     }
 
     @Transactional(readOnly = true)
-    public List<RoleDto> getRolesByUser(UUID userId) {
-        Set<UUID> roleIds = userRoleRepository.findByUserId(userId).stream()
+    public List<RoleDto> getRolesByUser(String userId) {
+        requireUser(userId);
+        Set<String> roleIds = userRoleRepository.findByUserId(userId).stream()
                 .map(UserRoleEntity::getRoleId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+        if (roleIds.isEmpty()) {
+            return List.of();
+        }
         return roleRepository.findAllById(roleIds).stream().map(this::toDto).toList();
     }
 
     public RoleDto createRole(RoleRequest dto) {
-        RoleEntity e = new RoleEntity();
-        e.setName(dto.name());
-        return toDto(roleRepository.save(e));
+        RoleEntity entity = new RoleEntity();
+        entity.setId(Ids.newId());
+        entity.setName(dto.name());
+        return toDto(roleRepository.save(entity));
     }
 
-    public RoleDto updateRole(UUID id, RoleRequest dto) {
-        RoleEntity e = roleRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
-        e.setName(dto.name());
-        return toDto(roleRepository.save(e));
+    public RoleDto updateRole(String id, RoleRequest dto) {
+        RoleEntity entity = requireRole(id);
+        entity.setName(dto.name());
+        return toDto(roleRepository.save(entity));
     }
 
-    public void deleteRole(UUID id) {
-        if (!roleRepository.existsById(id)) {
-            throw new NotFoundException("Role not found: " + id);
-        }
+    public void deleteRole(String id) {
+        requireRole(id);
         roleRepository.deleteById(id);
     }
 
+    private RoleDto toDto(RoleEntity entity) {
+        return new RoleDto(entity.getId(), entity.getName());
+    }
+
+    // ----------------------------------------------------------------- счета
+
     @Transactional(readOnly = true)
-    public List<PaymentDto> getAllPayments() {
-        return paymentRepository.findAll().stream().map(this::toDto).toList();
+    public List<AccountDto> getAllAccounts() {
+        return toAccountDtos(accountRepository.findAll());
     }
 
     @Transactional(readOnly = true)
-    public PaymentDto getPayment(UUID id) {
-        return toDto(paymentRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Payment not found: " + id)));
+    public AccountDto getAccount(String id) {
+        return toAccountDtos(List.of(requireAccount(id))).get(0);
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentDto> getPaymentsByProvider(UUID providerId) {
-        return paymentRepository.findByProvId(providerId).stream().map(this::toDto).toList();
+    public List<AccountDto> getAccountsByProvider(String providerId) {
+        return toAccountDtos(accountRepository.findByProviderId(providerId));
     }
 
-    @Transactional(readOnly = true)
-    public List<PaymentDto> getPaymentsByStatus(PaymentStatus status) {
-        return paymentRepository.findByStatus(status).stream().map(this::toDto).toList();
+    public AccountDto createAccount(AccountRequest dto) {
+        AccountTypeEntity entity = new AccountTypeEntity();
+        entity.setId(Ids.newId());
+        applyAccount(entity, dto);
+        return getAccount(accountRepository.save(entity).getId());
     }
 
-    @Transactional(readOnly = true)
-    public String getPaymentQrCode(UUID id) {
-        PaymentEntity payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Payment not found: " + id));
-        if (payment.getQrCode() == null || payment.getQrCode().isBlank()) {
-            throw new NotFoundException("QR code not found for payment: " + id);
+    public AccountDto updateAccount(String id, AccountRequest dto) {
+        AccountTypeEntity entity = requireAccount(id);
+        applyAccount(entity, dto);
+        accountRepository.save(entity);
+        return getAccount(id);
+    }
+
+    public void deleteAccount(String id) {
+        requireAccount(id);
+        accountRepository.deleteById(id);
+    }
+
+    private void applyAccount(AccountTypeEntity entity, AccountRequest dto) {
+        ProviderEntity provider = requireProvider(dto.providerId());
+        if (!Ids.isBlank(dto.commissionId()) && !commissionRepository.existsById(dto.commissionId())) {
+            throw new NotFoundException("Commission not found: " + dto.commissionId());
         }
-        return payment.getQrCode();
+        entity.setName(dto.name());
+        entity.setPaymentCode(dto.paymentCode());
+        entity.setServiceIdPl(dto.serviceIdPl());
+        entity.setIsManualSum(dto.isManualSum());
+        entity.setProviderId(provider.getId());
+        entity.setProviderName(provider.getName());
+        entity.setCommissionId(Ids.trimToNull(dto.commissionId()));
+        entity.setEnableMultiSelectServices(dto.enableMultiSelectServices());
+        entity.setMccCode(dto.mccCode());
+        entity.setQrInteractionModel(dto.qrInteractionModel());
     }
 
-    public PaymentDto createPayment(PaymentRequest dto) {
-        ProviderEntity provider = providerRepository.findById(dto.provId())
-                .orElseThrow(() -> new NotFoundException("Provider not found: " + dto.provId()));
-
-        BigDecimal effectiveSum = dto.sum();
-        if (dto.serviceId() != null) {
-            ProviderServiceEntity service = providerServiceRepository.findById(dto.serviceId())
-                    .orElseThrow(() -> new NotFoundException("Service not found: " + dto.serviceId()));
-            if (service.getPrice().compareTo(BigDecimal.ZERO) != 0) {
-                effectiveSum = service.getPrice();
-            }
+    private List<AccountDto> toAccountDtos(List<AccountTypeEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
         }
-
-        PaymentEntity e = new PaymentEntity();
-        e.setId(UUID.randomUUID());
-        e.setSum(effectiveSum);
-        e.setFee(resolvePaymentFee(effectiveSum, dto.fee(), provider));
-        e.setStatus(dto.status() == null ? PaymentStatus.processing : dto.status());
-        e.setProvId(dto.provId());
-        e.setInn(dto.inn());
-        e.setFio(dto.fio());
-        e.setQrLink(paymentQrLink(e.getId()));
-        e.setQrCode(generateQrCode(e.getQrLink()));
-        return toDto(paymentRepository.save(e));
+        Lookups lookups = lookupFactory.load();
+        return rows.stream()
+                .map(row -> new AccountDto(
+                        row.getId(),
+                        row.getName(),
+                        row.getPaymentCode(),
+                        row.getServiceIdPl(),
+                        row.getIsManualSum(),
+                        row.getProviderId(),
+                        row.getProviderName() != null ? row.getProviderName() : lookups.providerName(row.getProviderId()),
+                        row.getCommissionId(),
+                        lookups.commissionDetails(row.getCommissionId()),
+                        row.getEnableMultiSelectServices(),
+                        row.getMccCode(),
+                        row.getQrInteractionModel()))
+                .toList();
     }
 
-    public PaymentDto updatePaymentStatus(UUID id, PaymentStatusRequest dto) {
-        PaymentEntity e = paymentRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Payment not found: " + id));
-        e.setStatus(dto.status());
-        return toDto(paymentRepository.save(e));
+    // ------------------------------------------------------------- комиссии
+
+    @Transactional(readOnly = true)
+    public List<CommissionDto> getAllCommissions() {
+        return commissionRepository.findAll().stream().map(this::toDto).toList();
     }
 
-    public void deletePayment(UUID id) {
-        if (!paymentRepository.existsById(id)) {
-            throw new NotFoundException("Payment not found: " + id);
-        }
-        paymentRepository.deleteById(id);
+    @Transactional(readOnly = true)
+    public CommissionDto getCommission(String id) {
+        return toDto(requireCommission(id));
     }
 
-    public Map<String, Object> executeExternalRequest(String operation, Map<String, Object> params) {
-        return switch (operation.toUpperCase(Locale.ROOT)) {
-            case "ALL_SERVICES" -> Map.of("services", getAllServices());
-            case "SERVICE_BY_ID" -> Map.of("service", getService(uuid(params, "id")));
-            case "SERVICES_BY_CATEGORY" -> Map.of("services", getServicesByCategory(uuid(params, "categoryId")));
-            case "SERVICES_BY_PROVIDER" -> Map.of("services", getServicesByProvider(uuid(params, "providerId")));
-            case "SERVICES_BY_ACCOUNT" -> Map.of("services", getServicesByAccount(uuid(params, "accountId")));
-            case "SERVICES_BY_USER_SPECIALIZATION" -> Map.of("services", getServicesByUserSpecialization(uuid(params, "userId")));
-            case "CREATE_SERVICE" -> Map.of("service", createService(providerServiceRequest(params)));
-            case "ALL_CATEGORIES" -> Map.of("categories", getAllCategories());
-            case "CATEGORY_BY_ID" -> Map.of("category", getCategory(uuid(params, "id")));
-            case "CATEGORIES_BY_PROVIDER" -> Map.of("categories", getCategoriesByProvider(uuid(params, "providerId")));
-            case "CATEGORIES_BY_PARENT" -> Map.of("categories", getCategoriesByParent(uuid(params, "parentId")));
-            case "CREATE_CATEGORY" -> Map.of("category", createCategory(categoryServiceRequest(params)));
-            case "ALL_PROVIDERS" -> Map.of("providers", getAllProviders());
-            case "PROVIDER_BY_ID" -> Map.of("provider", getProvider(uuid(params, "id")));
-            case "CREATE_PROVIDER" -> Map.of("provider", createProvider(providerRequest(params)));
-            case "ALL_SPECIALIZATIONS" -> Map.of("specializations", getAllSpecializations());
-            case "SPECIALIZATION_BY_ID" -> Map.of("specialization", getSpecialization(uuid(params, "id")));
-            case "SPECIALIZATIONS_BY_PROVIDER" -> Map.of("specializations", getSpecializationsByProvider(uuid(params, "providerId")));
-            case "CREATE_SPECIALIZATION" -> Map.of("specialization", createSpecialization(specializationRequest(params)));
-            case "ALL_USERS" -> Map.of("users", getAllUsers());
-            case "USER_BY_ID" -> Map.of("user", getUser(uuid(params, "id")));
-            case "USERS_BY_PROVIDER" -> Map.of("users", getUsersByProvider(uuid(params, "providerId")));
-            case "USERS_BY_SPECIALIZATION" -> Map.of("users", getUsersBySpecialization(uuid(params, "specialId")));
-            case "CREATE_USER" -> Map.of("user", createUser(userRequest(params)));
-            case "ALL_ACCOUNTS" -> Map.of("accounts", getAllAccounts());
-            case "ACCOUNT_BY_ID" -> Map.of("account", getAccount(uuid(params, "id")));
-            case "ACCOUNTS_BY_PROVIDER" -> Map.of("accounts", getAccountsByProvider(uuid(params, "providerId")));
-            case "CREATE_ACCOUNT" -> Map.of("account", createAccount(accountRequest(params)));
-            case "ALL_COMMISSIONS" -> Map.of("commissions", getAllCommissions());
-            case "COMMISSION_BY_ID" -> Map.of("commission", getCommission(uuid(params, "id")));
-            case "CREATE_COMMISSION" -> Map.of("commission", createCommission(commissionRequest(params)));
-            case "ALL_COMMISSION_LEVELS" -> Map.of("commissionLevels", getAllCommissionLevels());
-            case "COMMISSION_LEVEL_BY_ID" -> Map.of("commissionLevel", getCommissionLevel(uuid(params, "id")));
-            case "ALL_ROLES" -> Map.of("roles", getAllRoles());
-            case "ROLE_BY_ID" -> Map.of("role", getRole(uuid(params, "id")));
-            case "ROLES_BY_USER" -> Map.of("roles", getRolesByUser(uuid(params, "userId")));
-            case "ALL_PAYMENTS" -> Map.of("payments", getAllPayments());
-            case "PAYMENT_BY_ID" -> Map.of("payment", getPayment(uuid(params, "id")));
-            case "PAYMENTS_BY_PROVIDER" -> Map.of("payments", getPaymentsByProvider(uuid(params, "providerId")));
-            case "PAYMENTS_BY_STATUS" -> Map.of("payments", getPaymentsByStatus(paymentStatus(params, "status")));
-            case "CREATE_PAYMENT" -> Map.of("payment", createPayment(paymentRequest(params)));
-            case "UPDATE_PAYMENT_STATUS" -> Map.of("payment", updatePaymentStatus(uuid(params, "id"), new PaymentStatusRequest(paymentStatus(params, "status"))));
-            default -> throw new IllegalArgumentException("Unsupported operation: " + operation);
+    public CommissionDto createCommission(CommissionRequest dto) {
+        Commission entity = new Commission();
+        entity.setId(Ids.newId());
+        entity.setName(dto.commissionType().name());
+        entity.setValue(dto.commissionValue().stripTrailingZeros().toPlainString());
+        return toDto(commissionRepository.save(entity));
+    }
+
+    public CommissionDto updateCommission(String id, CommissionRequest dto) {
+        Commission entity = requireCommission(id);
+        entity.setName(dto.commissionType().name());
+        entity.setValue(dto.commissionValue().stripTrailingZeros().toPlainString());
+        return toDto(commissionRepository.save(entity));
+    }
+
+    public void deleteCommission(String id) {
+        requireCommission(id);
+        commissionRepository.deleteById(id);
+    }
+
+    private CommissionDto toDto(Commission entity) {
+        return new CommissionDto(entity.getId(), Lookups.commissionType(entity), Lookups.commissionValue(entity));
+    }
+
+    /** Отдельной таблицы уровней комиссии в billing нет - это перечисление. */
+    @Transactional(readOnly = true)
+    public List<CommissionLevelDto> getAllCommissionLevels() {
+        return Arrays.stream(CommissionLevelName.values())
+                .map(level -> new CommissionLevelDto(level, commissionLevelDescription(level)))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CommissionLevelDto getCommissionLevel(String name) {
+        return Arrays.stream(CommissionLevelName.values())
+                .filter(level -> level.name().equalsIgnoreCase(name))
+                .findFirst()
+                .map(level -> new CommissionLevelDto(level, commissionLevelDescription(level)))
+                .orElseThrow(() -> new NotFoundException("Commission level not found: " + name));
+    }
+
+    private String commissionLevelDescription(CommissionLevelName level) {
+        return switch (level) {
+            case ProviderLevel -> "Комиссия берётся из providers.commission";
+            case AccountLevel -> "Комиссия берётся из account_type.CommissionId";
+            case ServiceLevel -> "Комиссия берётся из provider_services.commission";
         };
     }
 
-    private void syncServiceSpecializations(UUID serviceId, List<UUID> specialIds) {
-        if (specialIds == null) {
-            return;
-        }
-        serviceSpecializationRepository.deleteAll(serviceSpecializationRepository.findByServiceId(serviceId));
-        serviceSpecializationRepository.flush();
-        specialIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(specialId -> {
-                    if (!specializationRepository.existsById(specialId)) {
-                        throw new NotFoundException("Specialization not found: " + specialId);
-                    }
-                    ServiceSpecializationEntity link = new ServiceSpecializationEntity();
-                    link.setServiceId(serviceId);
-                    link.setSpecialId(specialId);
-                    serviceSpecializationRepository.save(link);
-                });
+    // ---------------------------------------------------------- организации
+
+    @Transactional(readOnly = true)
+    public List<OrganisationDto> getAllOrganisations() {
+        return organisationRepository.findAll().stream().map(this::toDto).toList();
     }
 
-    private void syncUserRoles(UUID userId, List<UUID> roleIds) {
-        if (roleIds == null) {
-            return;
-        }
-        userRoleRepository.deleteAll(userRoleRepository.findByUserId(userId));
-        userRoleRepository.flush();
-        roleIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(roleId -> {
-                    if (!roleRepository.existsById(roleId)) {
-                        throw new NotFoundException("Role not found: " + roleId);
-                    }
-                    UserRoleEntity link = new UserRoleEntity();
-                    link.setUserId(userId);
-                    link.setRoleId(roleId);
-                    userRoleRepository.save(link);
-                });
+    @Transactional(readOnly = true)
+    public OrganisationDto getOrganisation(String id) {
+        return toDto(requireOrganisation(id));
     }
 
-    private void syncUserSpecializations(UUID userId, List<UUID> specialIds) {
-        if (specialIds == null) {
-            return;
-        }
-        userSpecializationRepository.deleteAll(userSpecializationRepository.findByUserId(userId));
-        userSpecializationRepository.flush();
-        specialIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .forEach(specialId -> {
-                    if (!specializationRepository.existsById(specialId)) {
-                        throw new NotFoundException("Specialization not found: " + specialId);
-                    }
-                    UserSpecializationEntity link = new UserSpecializationEntity();
-                    link.setUserId(userId);
-                    link.setSpecialId(specialId);
-                    userSpecializationRepository.save(link);
-                });
+    public OrganisationDto createOrganisation(OrganisationRequest dto) {
+        OrganisationEntity entity = new OrganisationEntity();
+        entity.setId(Ids.newId());
+        entity.setCreatedDate(LocalDateTime.now());
+        applyOrganisation(entity, dto);
+        return toDto(organisationRepository.save(entity));
     }
 
-    private BigDecimal resolvePaymentFee(BigDecimal sum, BigDecimal explicitFee, ProviderEntity provider) {
-        if (explicitFee != null) {
-            return explicitFee;
-        }
-        if (provider.getCommId() == null) {
-            return BigDecimal.ZERO;
-        }
-        Commission commission = commissionRepository.findById(provider.getCommId()).orElse(null);
-        if (commission == null) {
-            return BigDecimal.ZERO;
-        }
-        if (commission.getCommissionType() == CommissionType.fixed) {
-            return commission.getCommissionValue();
-        }
-        return sum.multiply(commission.getCommissionValue())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    public OrganisationDto updateOrganisation(String id, OrganisationRequest dto) {
+        OrganisationEntity entity = requireOrganisation(id);
+        applyOrganisation(entity, dto);
+        return toDto(organisationRepository.save(entity));
     }
 
-    private String paymentQrLink(UUID paymentId) {
-        try {
-            return ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/api/payments/{id}/qr")
-                    .buildAndExpand(paymentId)
-                    .toUriString();
-        } catch (IllegalStateException ex) {
-            return "/api/payments/" + paymentId + "/qr";
-        }
+    public void deleteOrganisation(String id) {
+        requireOrganisation(id);
+        organisationRepository.deleteById(id);
     }
 
-    private String generateQrCode(String payload) {
-        try {
-            BitMatrix matrix = new QRCodeWriter().encode(payload, BarcodeFormat.QR_CODE, 300, 300);
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(matrix, "PNG", output);
-            return Base64.getEncoder().encodeToString(output.toByteArray());
-        } catch (WriterException | IOException ex) {
-            throw new IllegalStateException("Failed to generate QR code", ex);
-        }
+    private void applyOrganisation(OrganisationEntity entity, OrganisationRequest dto) {
+        entity.setName(dto.name());
+        entity.setShortName(dto.shortName());
+        entity.setDescription(dto.description());
+        entity.setIsActive(dto.isActive());
+        entity.setDateOfSigning(dto.dateOfSigning());
+        entity.setTypeOfQr(dto.typeOfQr());
+        entity.setTypeOfOrganisation(dto.typeOfOrganisation());
+        entity.setCurrentStatus(dto.currentStatus());
+        entity.setLowerCommission(dto.lowerCommission() == null ? null : Amounts.formatSom(dto.lowerCommission()));
+        entity.setTypeLowerCommission(dto.typeLowerCommission() == null ? null : dto.typeLowerCommission().name());
     }
 
-    private ProviderServiceDto toDto(ProviderServiceEntity e) {
-        return new ProviderServiceDto(
-                e.getId(),
-                e.getName(),
-                e.getPrice(),
-                categoryName(e.getCategoryId()),
-                providerName(e.getProvId()),
-                accountName(e.getAccountId()),
-                commissionDetails(e.getCommId()),
-                serviceSpecializationNames(e.getId())
-        );
+    private OrganisationDto toDto(OrganisationEntity entity) {
+        return new OrganisationDto(
+                entity.getId(),
+                entity.getName(),
+                entity.getShortName(),
+                entity.getDescription(),
+                entity.getIsActive(),
+                entity.getCreatedDate(),
+                entity.getDateOfSigning(),
+                entity.getTypeOfQr(),
+                entity.getTypeOfOrganisation(),
+                entity.getCurrentStatus(),
+                Amounts.parseSom(entity.getLowerCommission()),
+                entity.getTypeLowerCommission());
     }
 
-    private CategoryServiceDto toDto(CategoryServiceEntity e) {
-        return new CategoryServiceDto(
-                e.getId(),
-                e.getName(),
-                categoryName(e.getPrntCategory()),
-                providerName(e.getProvId())
-        );
+    // ------------------------------------------------------- филиалы банка
+
+    @Transactional(readOnly = true)
+    public List<BankFilialDto> getAllBankFilials() {
+        return bankFilialRepository.findAll().stream().map(this::toDto).toList();
     }
 
-    private ProviderDto toDto(ProviderEntity e) {
-        return new ProviderDto(
-                e.getId(),
-                e.getFullName(),
-                e.getShortName(),
-                commissionLevelName(e.getCommLvl()),
-                commissionDetails(e.getCommId())
-        );
+    @Transactional(readOnly = true)
+    public BankFilialDto getBankFilial(String id) {
+        return toDto(bankFilialRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Bank filial not found: " + id)));
     }
 
-    private SpecializationDto toDto(SpecializationEntity e) {
-        return new SpecializationDto(e.getId(), e.getName(), providerName(e.getProvId()));
+    private BankFilialDto toDto(BankFilialEntity entity) {
+        return new BankFilialDto(
+                entity.getId(),
+                entity.getFilialNumber(),
+                entity.getName(),
+                entity.getAddress(),
+                entity.getRegion(),
+                entity.getResponsibleManager(),
+                entity.getPhoneNumber());
     }
 
-    private UserDto toDto(UserEntity e) {
-        return new UserDto(
-                e.getId(),
-                e.getName(),
-                e.getEmail(),
-                e.getPassword(),
-                providerName(e.getProvId()),
-                userRoleNames(e.getId()),
-                userSpecializationNames(e.getId())
-        );
+    // ------------------------------------------------------------- служебное
+
+    @Transactional(readOnly = true)
+    public ProviderServiceEntity requireService(String id) {
+        return serviceRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Service not found: " + id));
     }
 
-    private AccountDto toDto(AccountEntity e) {
-        return new AccountDto(e.getId(), e.getName(), e.getOwnerName(), providerName(e.getProvId()));
-    }
-
-    private CommissionDto toDto(Commission e) {
-        return new CommissionDto(e.getId(), e.getCommissionType(), e.getCommissionValue());
-    }
-
-    private CommissionLevelDto toDto(CommissionLevel e) {
-        return new CommissionLevelDto(e.getId(), e.getName());
-    }
-
-    private RoleDto toDto(RoleEntity e) {
-        return new RoleDto(e.getId(), e.getName());
-    }
-
-    private PaymentDto toDto(PaymentEntity e) {
-        return new PaymentDto(
-                e.getId(),
-                e.getSum(),
-                e.getFee(),
-                e.getStatus(),
-                providerName(e.getProvId()),
-                e.getInn(),
-                e.getFio(),
-                e.getQrLink(),
-                e.getQrCode(),
-                e.getCreatedAt(),
-                e.getUpdatedAt()
-        );
-    }
-
-    private String providerName(UUID id) {
-        if (id == null) {
-            return null;
-        }
+    @Transactional(readOnly = true)
+    public ProviderEntity requireProvider(String id) {
         return providerRepository.findById(id)
-                .map(provider -> provider.getShortName() == null || provider.getShortName().isBlank()
-                        ? provider.getFullName()
-                        : provider.getShortName())
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Provider not found: " + id));
     }
 
-    private String categoryName(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return categoryServiceRepository.findById(id)
-                .map(CategoryServiceEntity::getName)
-                .orElse(null);
+    @Transactional(readOnly = true)
+    public UserEntity requireUser(String id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found: " + id));
     }
 
-    private String accountName(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return accountRepository.findById(id)
-                .map(AccountEntity::getName)
-                .orElse(null);
+    private CategoryServiceEntity requireCategory(String id) {
+        return categoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Category not found: " + id));
     }
 
-    private String commissionLevelName(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return commissionLevelRepository.findById(id)
-                .map(CommissionLevel::getName)
-                .map(Enum::name)
-                .orElse(null);
-    }
-
-    private CommissionDto commissionDto(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return commissionRepository.findById(id)
-                .map(this::toDto)
-                .orElse(null);
-    }
-
-    private CommissionDetailsDto commissionDetails(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return commissionRepository.findById(id)
-                .map(commission -> new CommissionDetailsDto(
-                        commission.getCommissionType(),
-                        commission.getCommissionValue()
-                ))
-                .orElse(null);
-    }
-
-    private List<String> serviceSpecializationNames(UUID serviceId) {
-        return serviceSpecializationRepository.findByServiceId(serviceId).stream()
-                .map(ServiceSpecializationEntity::getSpecialId)
-                .map(this::specializationName)
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private List<String> userRoleNames(UUID userId) {
-        return userRoleRepository.findByUserId(userId).stream()
-                .map(UserRoleEntity::getRoleId)
-                .map(this::roleName)
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private List<String> userSpecializationNames(UUID userId) {
-        return userSpecializationRepository.findByUserId(userId).stream()
-                .map(UserSpecializationEntity::getSpecialId)
-                .map(this::specializationName)
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private String specializationName(UUID id) {
+    private SpecializationEntity requireSpecialization(String id) {
         return specializationRepository.findById(id)
-                .map(SpecializationEntity::getName)
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Specialization not found: " + id));
     }
 
-    private String roleName(UUID id) {
+    private RoleEntity requireRole(String id) {
         return roleRepository.findById(id)
-                .map(RoleEntity::getName)
-                .map(Enum::name)
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
     }
 
-    private ProviderServiceRequest providerServiceRequest(Map<String, Object> params) {
-        return new ProviderServiceRequest(
-                text(params, "name"),
-                optionalDecimal(params, "price"),
-                uuid(params, "categoryId"),
-                uuid(params, "provId"),
-                uuid(params, "accountId"),
-                optionalUuid(params, "commId"),
-                uuidList(params, "specializationIds")
-        );
+    private AccountTypeEntity requireAccount(String id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Account not found: " + id));
     }
 
-    private CategoryServiceRequest categoryServiceRequest(Map<String, Object> params) {
-        return new CategoryServiceRequest(
-                text(params, "name"),
-                optionalUuid(params, "prntCategory"),
-                uuid(params, "provId")
-        );
+    private Commission requireCommission(String id) {
+        return commissionRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Commission not found: " + id));
     }
 
-    private ProviderRequest providerRequest(Map<String, Object> params) {
-        return new ProviderRequest(
-                text(params, "fullName"),
-                optionalText(params, "shortName"),
-                uuid(params, "commLvl"),
-                optionalUuid(params, "commId")
-        );
+    private OrganisationEntity requireOrganisation(String id) {
+        return organisationRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Organisation not found: " + id));
     }
 
-    private SpecializationRequest specializationRequest(Map<String, Object> params) {
-        return new SpecializationRequest(text(params, "name"), uuid(params, "provId"));
-    }
-
-    private UserRequest userRequest(Map<String, Object> params) {
-        return new UserRequest(
-                text(params, "name"),
-                text(params, "email"),
-                text(params, "password"),
-                uuid(params, "provId"),
-                uuidList(params, "roleIds"),
-                uuidList(params, "specializationIds")
-        );
-    }
-
-    private AccountRequest accountRequest(Map<String, Object> params) {
-        return new AccountRequest(text(params, "name"), text(params, "ownerName"), uuid(params, "provId"));
-    }
-
-    private CommissionRequest commissionRequest(Map<String, Object> params) {
-        return new CommissionRequest(
-                enumValue(params, "commissionType", CommissionType.class),
-                decimal(params, "commissionValue")
-        );
-    }
-
-    private PaymentRequest paymentRequest(Map<String, Object> params) {
-        return new PaymentRequest(
-                decimal(params, "sum"),
-                optionalDecimal(params, "fee"),
-                optionalPaymentStatus(params, "status"),
-                uuid(params, "provId"),
-                optionalText(params, "inn"),
-                text(params, "fio"),
-                optionalUuid(params, "serviceId")
-        );
-    }
-
-    private UUID uuid(Map<String, Object> params, String key) {
-        return UUID.fromString(String.valueOf(param(params, key)));
-    }
-
-    private UUID optionalUuid(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        return value == null || String.valueOf(value).isBlank() ? null : UUID.fromString(String.valueOf(value));
-    }
-
-    private String text(Map<String, Object> params, String key) {
-        return String.valueOf(param(params, key));
-    }
-
-    private String optionalText(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        return value == null ? null : String.valueOf(value);
-    }
-
-    private BigDecimal decimal(Map<String, Object> params, String key) {
-        return new BigDecimal(String.valueOf(param(params, key)));
-    }
-
-    private BigDecimal optionalDecimal(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        return value == null || String.valueOf(value).isBlank() ? null : new BigDecimal(String.valueOf(value));
-    }
-
-    private PaymentStatus paymentStatus(Map<String, Object> params, String key) {
-        return enumValue(params, key, PaymentStatus.class);
-    }
-
-    private PaymentStatus optionalPaymentStatus(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        return value == null || String.valueOf(value).isBlank()
-                ? null
-                : enumValue(String.valueOf(value), PaymentStatus.class);
-    }
-
-    private List<UUID> uuidList(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        if (value == null) {
-            return null;
+    private <T> List<T> filterDeleted(List<T> rows,
+                                      java.util.function.Function<T, Boolean> deletedFlag,
+                                      boolean includeDeleted) {
+        if (includeDeleted) {
+            return rows;
         }
-        if (value instanceof Collection<?> collection) {
-            return collection.stream()
-                    .filter(Objects::nonNull)
-                    .map(item -> UUID.fromString(String.valueOf(item)))
-                    .toList();
-        }
-        String raw = String.valueOf(value);
-        if (raw.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(raw.split(","))
-                .map(String::trim)
-                .filter(part -> !part.isBlank())
-                .map(UUID::fromString)
-                .toList();
+        return rows.stream().filter(row -> !Boolean.TRUE.equals(deletedFlag.apply(row))).toList();
     }
 
-    private <E extends Enum<E>> E enumValue(Map<String, Object> params, String key, Class<E> enumType) {
-        return enumValue(String.valueOf(param(params, key)), enumType);
+    private List<String> distinct(List<String> values) {
+        return new ArrayList<>(new LinkedHashSet<>(values.stream()
+                .filter(Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .toList()));
     }
 
-    private <E extends Enum<E>> E enumValue(String value, Class<E> enumType) {
-        return Arrays.stream(enumType.getEnumConstants())
-                .filter(item -> item.name().equalsIgnoreCase(value))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unsupported " + enumType.getSimpleName() + ": " + value));
-    }
-
-    private Object param(Map<String, Object> params, String key) {
-        Object value = optionalParam(params, key);
-        if (value == null) {
-            throw new IllegalArgumentException("Missing parameter: " + key);
-        }
-        return value;
-    }
-
-    private Object optionalParam(Map<String, Object> params, String key) {
-        if (params == null) {
-            return null;
-        }
-        if (params.containsKey(key)) {
-            return params.get(key);
-        }
-        return params.entrySet().stream()
-                .filter(entry -> entry.getKey().equalsIgnoreCase(key))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
+    private <T extends com.example.providerapiemulator.entity.BaseEntity> Collection<String> ids(List<T> rows) {
+        return rows.stream().map(com.example.providerapiemulator.entity.BaseEntity::getId).filter(Objects::nonNull).toList();
     }
 }

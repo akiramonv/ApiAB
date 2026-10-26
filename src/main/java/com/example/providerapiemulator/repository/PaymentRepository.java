@@ -1,14 +1,19 @@
 package com.example.providerapiemulator.repository;
 
 import com.example.providerapiemulator.entity.PaymentEntity;
-import com.example.providerapiemulator.model.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
-public interface PaymentRepository extends JpaRepository<PaymentEntity, UUID> {
-    List<PaymentEntity> findByProvId(UUID provId);
+public interface PaymentRepository extends JpaRepository<PaymentEntity, String> {
 
-    List<PaymentEntity> findByStatus(PaymentStatus status);
+    List<PaymentEntity> findByStatus(String status);
+
+    List<PaymentEntity> findByProviderUserId(String providerUserId);
+
+    List<PaymentEntity> findByPaycode(String paycode);
+
+    /** Ссылки на провайдера в payment нет, он определяется через автора платежа. */
+    List<PaymentEntity> findByProviderUserIdIn(Collection<String> providerUserIds);
 }

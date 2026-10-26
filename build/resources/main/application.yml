@@ -1,15 +1,22 @@
 server:
-  port: 7924
+  port: 2004
 
 spring:
+  application:
+    name: provider-api-emulator
   datasource:
-    url: jdbc:postgresql://localhost:5432/parodiaMisera
+    url: jdbc:postgresql://localhost:5432/billing
     username: postgres
     password: 09bd2n4d
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: validate
+      naming:
+        # В billing колонки названы как есть ("Inn", "TotalSum", "RelatedProvider"),
+        # поэтому стандартный camelCase -> snake_case Spring Boot тут не подходит:
+        # имена берём ровно такие, как написаны в @Column.
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     open-in-view: false
     properties:
       hibernate:
@@ -18,6 +25,8 @@ spring:
   sql:
     init:
       mode: never
+  jackson:
+    default-property-inclusion: non_null
 
 logging:
   level:

@@ -1,1 +1,0 @@
--- Example seed data. Safe to remove if you connect to your own DB.

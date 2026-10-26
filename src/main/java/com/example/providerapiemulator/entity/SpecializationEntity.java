@@ -1,19 +1,23 @@
 package com.example.providerapiemulator.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.UUID;
 
 @Entity
 @Table(name = "specializations")
 @Getter
 @Setter
 public class SpecializationEntity extends BaseEntity {
-    @Column(name = "name", nullable = false)
+
+    @Column(name = "name")
     private String name;
 
-    @Column(name = "provid", nullable = false)
-    private UUID provId;
+    @Column(name = "`Deleted`")
+    private Boolean deleted;
+
+    @Column(name = "`RelatedProvider`")
+    private String providerId;
 }

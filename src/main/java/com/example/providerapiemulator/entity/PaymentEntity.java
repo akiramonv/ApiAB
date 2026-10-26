@@ -1,67 +1,79 @@
 package com.example.providerapiemulator.entity;
 
-import com.example.providerapiemulator.model.PaymentStatus;
+import com.example.providerapiemulator.model.CheckField;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.List;
 
+/**
+ * Платёж, таблица payment. Суммы (sum, "Commission", "TotalSum") хранятся строками
+ * в тыйынах, у sum допустимо значение "any" - платёж на произвольную сумму.
+ */
 @Entity
-@Table(name = "payments")
+@Table(name = "payment")
 @Getter
 @Setter
 public class PaymentEntity extends BaseEntity {
-    @Column(name = "sum", nullable = false, precision = 12, scale = 2)
-    private BigDecimal sum;
 
-    @Column(name = "fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal fee = BigDecimal.ZERO;
+    @Column(name = "sum")
+    private String sum;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    private PaymentStatus status = PaymentStatus.processing;
+    @Column(name = "`Commission`")
+    private String commission;
 
-    @Column(name = "provid", nullable = false)
-    private UUID provId;
+    @Column(name = "`TotalSum`")
+    private String totalSum;
 
-    @Column(name = "inn", length = 20)
-    private String inn;
+    @Column(name = "deadline_date")
+    private LocalDateTime deadlineDate;
 
-    @Column(name = "fio", nullable = false)
-    private String fio;
+    @Column(name = "balance")
+    private Integer balance;
 
-    @Column(name = "qrlink", length = 2048)
-    private String qrLink;
+    @Column(name = "created_date")
+    private LocalDateTime createdDate;
 
-    @Column(name = "qrcode", columnDefinition = "TEXT")
-    private String qrCode;
+    /** in_process / success / warning / closed */
+    @Column(name = "status")
+    private String status;
 
-    @Column(name = "createdat", nullable = false)
-    private LocalDateTime createdAt;
+    /** one_time / any_time */
+    @Column(name = "payment_get_time")
+    private String paymentGetTime;
 
-    @Column(name = "updatedat", nullable = false)
-    private LocalDateTime updatedAt;
+    @Column(name = "paycode")
+    private String paycode;
 
-    @PrePersist
-    void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) {
-            createdAt = now;
-        }
-        updatedAt = now;
-    }
+    /** individual / legal */
+    @Column(name = "`ClientType`")
+    private String clientType;
 
-    @PreUpdate
-    void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    /** ProviderLevel / AccountLevel / ServiceLevel */
+    @Column(name = "`CommissionLevel`")
+    private String commissionLevel;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "source_check_db", columnDefinition = "jsonb")
+    private List<CheckField> sourceCheckDb;
+
+    /** db / gns */
+    @Column(name = "source_check")
+    private String sourceCheck;
+
+    @Column(name = "invoice")
+    private Boolean invoice;
+
+    /** Автор платежа - users.id. */
+    @Column(name = "provider_user")
+    private String providerUserId;
+
+    @Column(name = "`Deleted`")
+    private Boolean deleted;
 }

@@ -1,10 +1,12 @@
 package com.example.providerapiemulator.dto;
 
-import java.util.UUID;
-
 public record CategoryServiceDto(
-        UUID id,
+        String id,
         String name,
+        String parentCategoryId,
         String parentCategoryName,
+        String icon,
+        Boolean deleted,
+        String providerId,
         String providerName
 ) {}

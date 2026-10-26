@@ -1,21 +1,24 @@
 package com.example.providerapiemulator.entity;
 
-import com.example.providerapiemulator.model.CommissionType;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
+/**
+ * Таблица commission: name - тип комиссии (percent/fixed), value - величина, обе колонки varchar.
+ * Значения хранятся строками, поэтому парсинг вынесен в сервис.
+ */
 @Entity
 @Table(name = "commission")
 @Getter
 @Setter
 public class Commission extends BaseEntity {
-    @Enumerated(EnumType.STRING)
-    @Column(name = "commissiontype", nullable = false)
-    private CommissionType commissionType;
 
-    @Column(name = "commissionvalue", nullable = false, precision = 12, scale = 2)
-    private BigDecimal commissionValue;
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "value")
+    private String value;
 }

@@ -1,11 +1,30 @@
 package com.example.providerapiemulator.dto;
 
-import java.util.UUID;
-
 public record ProviderDto(
-        UUID id,
-        String fullName,
-        String shortName,
+        String id,
+        String name,
+        String account,
+        Integer code,
+        String inn,
         String commissionLevel,
-        CommissionDetailsDto commission
+        String commissionId,
+        CommissionDetailsDto commission,
+        String organisationId,
+        String organisationName,
+        String address,
+        String phoneNumber,
+        String postalCode,
+        String director,
+        String chiefAccountant,
+        String bik,
+        String gni,
+        String okpo,
+        String bankAddress,
+        String bankFilialId,
+        String bankFilialName,
+        String levelIdPl,
+        Boolean paycodeManual,
+        Boolean fioInnHide,
+        Boolean disableStatQr,
+        Boolean requireInnForPayment
 ) {}

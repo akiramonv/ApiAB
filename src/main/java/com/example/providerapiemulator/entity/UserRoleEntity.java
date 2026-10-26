@@ -1,19 +1,21 @@
 package com.example.providerapiemulator.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.UUID;
-
+/** Связка users <-> roles. Колонка "user" - зарезервированное слово, поэтому в кавычках. */
 @Entity
-@Table(name = "userrole")
+@Table(name = "userroles")
 @Getter
 @Setter
 public class UserRoleEntity extends BaseEntity {
-    @Column(name = "userid", nullable = false)
-    private UUID userId;
 
-    @Column(name = "roleid", nullable = false)
-    private UUID roleId;
+    @Column(name = "`user`")
+    private String userId;
+
+    @Column(name = "role")
+    private String roleId;
 }

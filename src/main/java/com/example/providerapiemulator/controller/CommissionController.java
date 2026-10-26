@@ -5,17 +5,9 @@ import com.example.providerapiemulator.dto.CommissionRequest;
 import com.example.providerapiemulator.dto.GenericResponse;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/commissions")
@@ -33,7 +25,7 @@ public class CommissionController {
     }
 
     @GetMapping("/{id}")
-    public GenericResponse<CommissionDto> one(@PathVariable UUID id) {
+    public GenericResponse<CommissionDto> one(@PathVariable String id) {
         return GenericResponse.ok(service.getCommission(id));
     }
 
@@ -43,12 +35,12 @@ public class CommissionController {
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<CommissionDto> update(@PathVariable UUID id, @Valid @RequestBody CommissionRequest dto) {
+    public GenericResponse<CommissionDto> update(@PathVariable String id, @Valid @RequestBody CommissionRequest dto) {
         return GenericResponse.ok(service.updateCommission(id, dto), "Commission updated");
     }
 
     @DeleteMapping("/{id}")
-    public GenericResponse<Void> delete(@PathVariable UUID id) {
+    public GenericResponse<Void> delete(@PathVariable String id) {
         service.deleteCommission(id);
         return GenericResponse.ok(null, "Commission deleted");
     }

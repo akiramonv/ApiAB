@@ -1,16 +1,18 @@
 package com.example.providerapiemulator.entity;
 
-import com.example.providerapiemulator.model.RoleName;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+/** Роли: admin, provider_user, superadmin, cashier, bank_office. Список открытый, поэтому String. */
 @Entity
 @Table(name = "roles")
 @Getter
 @Setter
 public class RoleEntity extends BaseEntity {
-    @Enumerated(EnumType.STRING)
-    @Column(name = "name", nullable = false, unique = true)
-    private RoleName name;
+
+    @Column(name = "name")
+    private String name;
 }

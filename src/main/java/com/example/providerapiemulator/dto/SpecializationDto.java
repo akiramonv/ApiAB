@@ -1,9 +1,9 @@
 package com.example.providerapiemulator.dto;
 
-import java.util.UUID;
-
 public record SpecializationDto(
-        UUID id,
+        String id,
         String name,
+        Boolean deleted,
+        String providerId,
         String providerName
 ) {}

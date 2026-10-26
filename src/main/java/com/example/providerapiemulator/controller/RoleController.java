@@ -5,17 +5,9 @@ import com.example.providerapiemulator.dto.RoleDto;
 import com.example.providerapiemulator.dto.RoleRequest;
 import com.example.providerapiemulator.service.ProviderCatalogService;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/roles")
@@ -33,12 +25,12 @@ public class RoleController {
     }
 
     @GetMapping("/{id}")
-    public GenericResponse<RoleDto> one(@PathVariable UUID id) {
+    public GenericResponse<RoleDto> one(@PathVariable String id) {
         return GenericResponse.ok(service.getRole(id));
     }
 
     @GetMapping("/by-user/{userId}")
-    public GenericResponse<List<RoleDto>> byUser(@PathVariable UUID userId) {
+    public GenericResponse<List<RoleDto>> byUser(@PathVariable String userId) {
         return GenericResponse.ok(service.getRolesByUser(userId));
     }
 
@@ -48,12 +40,12 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
-    public GenericResponse<RoleDto> update(@PathVariable UUID id, @Valid @RequestBody RoleRequest dto) {
+    public GenericResponse<RoleDto> update(@PathVariable String id, @Valid @RequestBody RoleRequest dto) {
         return GenericResponse.ok(service.updateRole(id, dto), "Role updated");
     }
 
     @DeleteMapping("/{id}")
-    public GenericResponse<Void> delete(@PathVariable UUID id) {
+    public GenericResponse<Void> delete(@PathVariable String id) {
         service.deleteRole(id);
         return GenericResponse.ok(null, "Role deleted");
     }
